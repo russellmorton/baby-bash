@@ -84,6 +84,24 @@ test.describe('start screen', () => {
     await page.mouse.click(300, 300);
     await expect(page.locator('#start')).toBeHidden();
   });
+
+  test('GitHub and X links open in a new tab without starting the toy', async ({ page, context }) => {
+    await context.route(/github\.com|x\.com/, r => r.fulfill({ status: 200, contentType: 'text/html', body: '' }));
+    await open(page);
+    const links = page.locator('#start .links a');
+    await expect(links).toHaveCount(2);
+    await expect(links.nth(0)).toHaveAttribute('href', 'https://github.com/russellmorton/baby-bash');
+    await expect(links.nth(1)).toHaveAttribute('href', 'https://x.com/russell_morton');
+
+    for (const via of ['click', 'keyboard']) {
+      const popup = page.waitForEvent('popup');
+      if (via === 'click') await links.nth(0).click();
+      else { await links.nth(1).focus(); await page.keyboard.press('Enter'); }
+      await (await popup).close();
+      await expect(page.locator('#start')).toBeVisible();
+    }
+    expect(await spy(page, 's => s.contexts')).toBe(0);
+  });
 });
 
 test.describe('sound', () => {
@@ -326,6 +344,31 @@ test.describe('keeping little hands in the app', () => {
 
     await page.keyboard.press('KeyQ');
     await expect(page.locator('#start')).toBeHidden();
+  });
+
+  test('on a touch screen, holding the corner ✕ exits; a quick tap does not', async ({ page }) => {
+    await open(page);
+    const touch = (sel, type) => page.evaluate(([sel, type]) => {
+      const el = sel ? document.querySelector(sel) : document.body;
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', clientX: 300, clientY: 300, bubbles: true, cancelable: true }));
+    }, [sel, type]);
+    const exit = page.locator('#exit');
+
+    await page.keyboard.press('KeyQ');
+    await expect(exit).toBeHidden(); // keyboard and mouse users have Esc
+    await touch(null, 'pointerdown'); // first touch reveals it
+    await expect(exit).toBeVisible();
+    const notesBefore = await noteCount(page);
+    await touch('#exit', 'pointerdown');
+    await page.waitForTimeout(500);
+    await touch('#exit', 'pointerup');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#start')).toBeHidden();
+    expect(await noteCount(page)).toBe(notesBefore); // the button doesn't make a burst
+
+    await touch('#exit', 'pointerdown');
+    await expect(page.locator('#start')).toBeVisible({ timeout: 2500 });
+    await expect(exit).toBeHidden();
   });
 
   test('leaving full screen brings back the start card', async ({ page }) => {
