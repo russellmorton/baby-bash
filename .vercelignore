@@ -8,3 +8,6 @@ package.json
 package-lock.json
 baby-bash.sh
 README.md
+docs
+.github
+LICENSE

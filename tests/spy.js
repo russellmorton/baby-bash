@@ -8,6 +8,7 @@
     maxAlive: 0,
     peak: 0,
     texts: [],
+    glyphs: [],     // { text, color } for the first frame each big character is drawn
   });
 
   const Orig = window.AudioContext;
@@ -61,6 +62,7 @@
   const fillText = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (t, ...rest) {
     if (spy.texts[spy.texts.length - 1] !== t) spy.texts.push(t);
+    if (!spy.glyphs.some(g => g.text === t)) spy.glyphs.push({ text: t, color: this.fillStyle });
     return fillText.call(this, t, ...rest);
   };
 })();

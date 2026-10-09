@@ -1,5 +1,9 @@
 // @ts-check
 const { defineConfig } = require('@playwright/test');
+const fs = require('fs');
+
+// Prefer the system Chromium (the browser the launcher opens); fall back to Playwright's own, e.g. on CI
+const systemChromium = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -14,8 +18,7 @@ module.exports = defineConfig({
   use: {
     viewport: { width: 1280, height: 800 },
     launchOptions: {
-      // Use the system Chromium (the same browser the launcher script opens)
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+      executablePath: fs.existsSync(systemChromium) ? systemChromium : undefined,
       args: ['--autoplay-policy=no-user-gesture-required'],
     },
   },

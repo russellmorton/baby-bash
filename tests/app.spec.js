@@ -49,6 +49,15 @@ function brightPixels(page, box) {
   }, box);
 }
 
+/** Hue in degrees of a canvas fillStyle such as "rgba(12, 200, 255, 0.9)". */
+function hueOf(color) {
+  const [r, g, b] = color.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => v / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  if (!d) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
 function midi(f) { return 69 + 12 * Math.log2(f / 440); }
 
 test.describe('start screen', () => {
@@ -86,7 +95,7 @@ test.describe('sound', () => {
       await page.waitForTimeout(15);
     }
     const notes = await spy(page, 's => s.notes');
-    expect(notes.length).toBeGreaterThan(20);
+    expect(notes.length).toBeGreaterThanOrEqual(10); // fast presses hit the 14-voice cap, so not every key sounds
     for (const n of notes) {
       const m = midi(n.freq);
       expect(Math.abs(m - Math.round(m)), `${n.freq}Hz is out of tune`).toBeLessThan(0.01);
@@ -214,6 +223,20 @@ test.describe('visuals', () => {
     expect(texts).toContain('A');
     expect(texts).toContain('7');
     expect(texts.some(t => !/^[A-Z0-9]$/.test(t))).toBe(false);
+  });
+
+  test('letters get colours from all around the colour wheel', async ({ page }) => {
+    await open(page);
+    await start(page);
+    for (const k of 'abcdefghijklmnopqrstuvwxyz'.split('')) {
+      await page.keyboard.press(k);
+      await page.waitForTimeout(20);
+    }
+    const glyphs = await spy(page, 's => s.glyphs');
+    expect(glyphs.length).toBe(26);
+    const hues = glyphs.map(g => hueOf(g.color));
+    const buckets = new Set(hues.map(h => Math.floor(h / 30))); // 12 slices of 30°
+    expect(buckets.size, `hues: ${hues.map(Math.round).join(', ')}`).toBeGreaterThanOrEqual(8);
   });
 
   test('a tap bursts where the finger lands', async ({ page }) => {
