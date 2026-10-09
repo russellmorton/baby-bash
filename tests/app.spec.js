@@ -2,7 +2,8 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 
-const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
+// Set APP_URL to test a deployed copy, e.g. APP_URL=https://baby-bash-azure.vercel.app npm test
+const APP = process.env.APP_URL || 'file://' + path.resolve(__dirname, '..', 'index.html');
 const PENTATONIC = new Set([0, 2, 4, 7, 9]); // C D E G A
 
 /** Open the app with the spy installed and Google Fonts stubbed out (no network in tests). */
