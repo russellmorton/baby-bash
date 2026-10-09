@@ -267,10 +267,20 @@
     });
   }
 
+  // A short run of pentatonic notes, e.g. for milestones
+  function arp(idxs, synthIdx, gap, vel) {
+    if (!ac) return;
+    idxs.forEach((n, i) => setTimeout(() => playNote(n, synthIdx, vel), i * gap));
+  }
+
   /* ---------- Visuals ---------- */
   const particles = [];
   const rings = [];
   const glyphs = [];
+  const sweeps = [];    // rainbow waves crossing the screen
+  const floaters = [];  // big shapes drifting up
+  const later = [];     // { at, fn } timed callbacks, run from the frame loop
+  let wordShow = null;  // the spelled word currently on screen
   const MAX_PARTICLES = reduced ? 600 : 1600;
   let bgHue = 250;
 
@@ -334,7 +344,264 @@
   // Order doesn't matter, so remove by swapping with the last item instead of splice
   function drop(arr, i) { arr[i] = arr[arr.length - 1]; arr.pop(); }
 
+  /* ---------- Pictures ---------- */
+  // Each picture is drawn in a box about 100 units across, centred on (0, 0).
+  const EYE = 'hsl(250, 35%, 14%)';
+  const disc = (g, x, y, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  const oval = (g, x, y, rx, ry, c, rot = 0) => { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fill(); };
+  const poly = (g, c, p) => {
+    g.fillStyle = c; g.beginPath(); g.moveTo(p[0], p[1]);
+    for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]);
+    g.closePath(); g.fill();
+  };
+  const line = (g, c, w, x1, y1, x2, y2) => {
+    g.strokeStyle = c; g.lineWidth = w; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  };
+  const eyes = (g, x, y, r) => { disc(g, -x, y, r, EYE); disc(g, x, y, r, EYE); };
+
+  const PICS = {
+    heart(g) {
+      g.fillStyle = 'hsl(345, 90%, 66%)'; g.beginPath(); g.moveTo(0, 38);
+      g.bezierCurveTo(-58, -2, -34, -46, 0, -16); g.bezierCurveTo(34, -46, 58, -2, 0, 38); g.fill();
+    },
+    star(g) {
+      g.fillStyle = 'hsl(48, 100%, 62%)'; g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 ? 22 : 50, a = -Math.PI / 2 + i * Math.PI / 5;
+        g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      g.closePath(); g.fill();
+    },
+    sun(g) {
+      for (let i = 0; i < 12; i++) {
+        const a = i * Math.PI / 6;
+        line(g, 'hsl(36, 100%, 60%)', 7, Math.cos(a) * 34, Math.sin(a) * 34, Math.cos(a) * 48, Math.sin(a) * 48);
+      }
+      disc(g, 0, 0, 28, 'hsl(46, 100%, 60%)');
+      eyes(g, 9, -4, 3); line(g, EYE, 2.5, -8, 8, 8, 8);
+    },
+    moon(g) {
+      g.save();
+      g.beginPath(); g.arc(0, 0, 38, 0, Math.PI * 2); g.clip();
+      g.fillStyle = 'hsl(50, 90%, 76%)'; g.beginPath();
+      g.rect(-60, -60, 120, 120); g.moveTo(50, -8); g.arc(18, -8, 32, 0, Math.PI * 2); g.fill('evenodd');
+      g.restore();
+    },
+    tree(g) {
+      poly(g, 'hsl(28, 45%, 38%)', [-7, 10, 7, 10, 7, 46, -7, 46]);
+      disc(g, -20, 8, 20, 'hsl(135, 55%, 42%)'); disc(g, 20, 8, 20, 'hsl(135, 55%, 42%)');
+      disc(g, 0, -10, 26, 'hsl(140, 60%, 48%)');
+    },
+    ball(g) {
+      g.save();
+      g.beginPath(); g.arc(0, 0, 40, 0, Math.PI * 2); g.clip();
+      g.fillStyle = 'hsl(0, 80%, 62%)'; g.fillRect(-40, -40, 80, 28);
+      g.fillStyle = 'hsl(48, 95%, 62%)'; g.fillRect(-40, -12, 80, 24);
+      g.fillStyle = 'hsl(210, 85%, 62%)'; g.fillRect(-40, 12, 80, 28);
+      g.restore();
+    },
+    car(g) {
+      const red = 'hsl(355, 80%, 60%)';
+      poly(g, red, [-26, -2, -14, -24, 18, -24, 30, -2]);
+      poly(g, red, [-44, -2, 44, -2, 44, 22, -44, 22]);
+      poly(g, 'hsl(200, 70%, 78%)', [-20, -4, -12, -19, -1, -19, -1, -4]);
+      poly(g, 'hsl(200, 70%, 78%)', [4, -4, 4, -19, 15, -19, 23, -4]);
+      for (const x of [-24, 24]) { disc(g, x, 24, 11, EYE); disc(g, x, 24, 4, 'hsl(250, 15%, 60%)'); }
+    },
+    cat(g) {
+      const c = 'hsl(28, 95%, 62%)';
+      poly(g, c, [-30, -4, -28, -42, -6, -24]); poly(g, c, [30, -4, 28, -42, 6, -24]);
+      poly(g, 'hsl(345, 80%, 78%)', [-25, -8, -24, -32, -11, -21]); poly(g, 'hsl(345, 80%, 78%)', [25, -8, 24, -32, 11, -21]);
+      disc(g, 0, 6, 32, c); eyes(g, 11, 0, 4);
+      poly(g, 'hsl(345, 80%, 72%)', [-4, 9, 4, 9, 0, 14]);
+      for (const s of [-1, 1]) {
+        line(g, 'hsl(40, 60%, 88%)', 1.8, s * 14, 13, s * 42, 8);
+        line(g, 'hsl(40, 60%, 88%)', 1.8, s * 14, 17, s * 42, 19);
+      }
+    },
+    dog(g) {
+      oval(g, -30, -2, 10, 22, 'hsl(25, 50%, 34%)', 0.25); oval(g, 30, -2, 10, 22, 'hsl(25, 50%, 34%)', -0.25);
+      oval(g, 0, 4, 28, 32, 'hsl(30, 55%, 52%)');
+      oval(g, 0, 18, 15, 11, 'hsl(32, 60%, 74%)'); oval(g, 0, 12, 6, 4, EYE);
+      eyes(g, 11, -6, 4);
+      oval(g, 0, 31, 5, 6, 'hsl(350, 80%, 68%)');
+    },
+    cow(g) {
+      const face = 'hsl(40, 35%, 86%)';
+      poly(g, 'hsl(40, 50%, 70%)', [-14, -26, -22, -46, -6, -32]); poly(g, 'hsl(40, 50%, 70%)', [14, -26, 22, -46, 6, -32]);
+      oval(g, -34, -8, 12, 7, face, 0.4); oval(g, 34, -8, 12, 7, face, -0.4);
+      oval(g, 0, 0, 30, 34, face);
+      oval(g, -15, -18, 10, 8, 'hsl(250, 20%, 28%)'); oval(g, 19, -6, 8, 10, 'hsl(250, 20%, 28%)');
+      oval(g, 0, 20, 20, 13, 'hsl(345, 70%, 78%)'); eyes(g, 7, 20, 3); eyes(g, 12, -6, 3.5);
+    },
+    pig(g) {
+      const pink = 'hsl(340, 80%, 78%)';
+      poly(g, 'hsl(340, 70%, 68%)', [-28, -16, -16, -40, -2, -24]); poly(g, 'hsl(340, 70%, 68%)', [28, -16, 16, -40, 2, -24]);
+      disc(g, 0, 4, 32, pink); eyes(g, 14, -6, 4);
+      oval(g, 0, 10, 15, 11, 'hsl(340, 70%, 68%)'); eyes(g, 5, 10, 2.8);
+    },
+    bee(g) {
+      oval(g, -8, -22, 12, 17, 'hsla(200, 90%, 80%, 0.75)', -0.3); oval(g, 12, -22, 12, 17, 'hsla(200, 90%, 80%, 0.75)', 0.3);
+      oval(g, 0, 6, 32, 24, 'hsl(48, 100%, 58%)');
+      g.save();
+      g.beginPath(); g.ellipse(0, 6, 32, 24, 0, 0, Math.PI * 2); g.clip();
+      g.fillStyle = EYE; g.fillRect(-12, -20, 9, 52); g.fillRect(8, -20, 9, 52);
+      g.restore();
+      disc(g, -22, 0, 4, EYE);
+      line(g, EYE, 2, -26, -14, -32, -26); line(g, EYE, 2, -20, -16, -22, -28);
+    },
+    duck(g) {
+      oval(g, -6, 18, 34, 22, 'hsl(50, 100%, 62%)'); oval(g, -10, 18, 16, 10, 'hsl(46, 95%, 50%)', -0.3);
+      disc(g, 14, -14, 18, 'hsl(50, 100%, 62%)');
+      oval(g, 34, -10, 10, 5, 'hsl(28, 100%, 58%)'); disc(g, 18, -18, 3.5, EYE);
+    },
+    fish(g) {
+      poly(g, 'hsl(210, 80%, 52%)', [24, 0, 48, -22, 48, 22]);
+      poly(g, 'hsl(210, 80%, 52%)', [-10, -18, 6, -34, 10, -16]);
+      oval(g, -6, 0, 34, 22, 'hsl(200, 85%, 62%)'); disc(g, -24, -4, 4, EYE);
+      line(g, 'hsl(210, 80%, 52%)', 2.5, -18, 6, -12, 10);
+    },
+  };
+
+  function drawPic(name, cx, cy, size, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.scale(size / 100, size / 100);
+    PICS[name](ctx);
+    ctx.restore();
+  }
+
+  /* ---------- Spelling words ---------- */
+  const WORDS = {};
+  for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
+  for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
+  for (const w of 'jack quinn elizabeth star'.split(' ')) WORDS[w] = 'star';
+  const NAMES = new Set(['jack', 'quinn', 'elizabeth']);
+  const WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
+  const LETTER_MS = 220;
+
+  let typed = '', lastLetterAt = 0;
+  // Called once per key press (not for auto-repeat). Space, digits, punctuation and Enter break a word.
+  function feedKey(key) {
+    if (/^[a-z]$/i.test(key)) {
+      const now = performance.now();
+      if (now - lastLetterAt > 2500) typed = '';
+      lastLetterAt = now;
+      typed = (typed + key.toLowerCase()).slice(-12);
+      const w = WORD_ORDER.find(w => typed.endsWith(w));
+      if (w) { typed = ''; showWord(w); }
+    } else if (key.length === 1 || key === 'Enter') typed = '';
+  }
+
+  function showWord(w) {
+    const now = performance.now();
+    const n = w.length;
+    wordShow = { word: w.toUpperCase(), pic: WORDS[w], start: now, dur: Math.max(3200, n * LETTER_MS + 1800) };
+    burst(W / 2, H * 0.36, hash('Key' + w[0].toUpperCase()) % 360, true);
+    if (NAMES.has(w)) {
+      for (let i = 1; i <= 3; i++) {
+        later.push({ at: now + i * 300, fn: () => burst(rand(W * 0.2, W * 0.8), rand(H * 0.15, H * 0.6), rand(0, 360), true) });
+      }
+    }
+    // One rising note per letter, as it lights up, then a chord
+    arp(Array.from({ length: n }, (_, i) => 5 + i), 1, LETTER_MS, 0.6);
+    setTimeout(() => playChord(7, 1), n * LETTER_MS);
+  }
+
+  const easeOutBack = x => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
+
+  function drawWord(now) {
+    const w = wordShow, t = now - w.start;
+    if (t > w.dur) { wordShow = null; return; }
+    const fade = Math.max(0, Math.min(1, t / 350, (w.dur - t) / 700));
+    const pop = reduced ? 1 : 0.4 + 0.6 * easeOutBack(Math.min(1, t / 450));
+    const bob = reduced ? 0 : Math.sin(t / 400) * H * 0.012;
+    drawPic(w.pic, W / 2, H * 0.36 + bob, Math.min(W, H) * 0.4 * pop, fade);
+
+    let fs = Math.min(H * 0.2, W * 0.2);
+    const face = s => `800 ${s}px "Baloo 2", "Trebuchet MS", sans-serif`;
+    ctx.font = face(fs);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const full = ctx.measureText(w.word).width;
+    if (full > W * 0.9) { fs *= W * 0.9 / full; ctx.font = face(fs); }
+    const width = ctx.measureText(w.word).width, x0 = (W - width) / 2, y = H * 0.74;
+    // Faint whole word underneath, then each letter lights up in turn
+    ctx.globalAlpha = fade * 0.25;
+    ctx.fillStyle = '#fff7ea';
+    ctx.fillText(w.word, x0, y);
+    for (let i = 0; i < w.word.length; i++) {
+      const ch = w.word[i], p = t - i * LETTER_MS;
+      const pulse = !reduced && p > 0 && p < 400 ? Math.sin(p / 400 * Math.PI) : 0;
+      const lx = x0 + ctx.measureText(w.word.slice(0, i)).width, lw = ctx.measureText(ch).width;
+      ctx.save();
+      ctx.translate(lx + lw / 2, y);
+      ctx.scale(1 + 0.35 * pulse, 1 + 0.35 * pulse);
+      ctx.globalAlpha = fade * (p > 0 ? 1 : 0.6);
+      ctx.fillStyle = `hsl(${hash('Key' + ch) % 360}, 100%, ${70 + pulse * 10}%)`;
+      ctx.fillText(ch, -lw / 2, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- Milestones ---------- */
+  // Every 10th bash gets a little extra, and the reward grows: 10 star ring, 25 rainbow sweep,
+  // 50 a big shape floats up, 100 fireworks.
+  let bashes = 0;
+  const FLOATS = ['sun', 'moon', 'heart', 'star'];
+
+  function milestone(n) {
+    const cx = W / 2, cy = H / 2;
+    if (n % 100 === 0) {
+      for (let i = 0; i < 6; i++) {
+        later.push({
+          at: performance.now() + i * 260,
+          fn: () => { burst(rand(W * 0.15, W * 0.85), rand(H * 0.15, H * 0.7), rand(0, 360), true); playNote(8 + i * 2, 1, 0.6); },
+        });
+      }
+      playChord(7, 1);
+    } else if (n % 50 === 0) {
+      const size = Math.min(W, H) * 0.3;
+      floaters.push({ pic: FLOATS[(n / 50 - 1) % FLOATS.length], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
+      arp([5, 7, 9, 11, 13], 1, 110, 0.6);
+    } else if (n % 25 === 0) {
+      sweeps.push({ x: -20, hue: rand(0, 360) });
+      arp([3, 4, 5, 6, 7, 8], 0, 190, 0.5);
+    } else {
+      const count = reduced ? 8 : 18, hue = rand(0, 360);
+      for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
+        const a = i / count * Math.PI * 2;
+        particles.push({
+          x: cx, y: cy, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7,
+          r: 12, hue: (hue + i * 360 / count) % 360, life: 1, decay: 0.012,
+          star: true, spin: 0.08, rot: 0,
+        });
+      }
+      rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue, life: 1 });
+      arp([9, 11], 1, 90, 0.6);
+    }
+  }
+
   function frame() {
+    const now = performance.now();
+    for (let i = later.length - 1; i >= 0; i--) {
+      if (now >= later[i].at) { const f = later[i].fn; drop(later, i); f(); }
+    }
+    for (let i = sweeps.length - 1; i >= 0; i--) {
+      const s = sweeps[i];
+      s.x += W / 80;
+      if (s.x > W + 20) { drop(sweeps, i); continue; }
+      for (let k = 0; k < (reduced ? 2 : 5) && particles.length < MAX_PARTICLES; k++) {
+        particles.push({
+          x: s.x, y: H * 0.5 + Math.sin(s.x / (W / 6)) * H * 0.22 + (k - 2) * H * 0.035,
+          vx: rand(-0.3, 0.3), vy: rand(-1, 0),
+          r: rand(7, 12), hue: (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
+          star: k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
+        });
+      }
+    }
     bgHue = (bgHue + 0.03) % 360;
     // Translucent wash leaves soft trails behind everything
     ctx.globalCompositeOperation = 'source-over';
@@ -383,6 +650,14 @@
       ctx.fillStyle = `hsla(${g.hue}, 100%, 75%, ${g.life})`;
       ctx.fillText(g.ch, g.x, g.y);
     }
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const f = floaters[i];
+      f.y -= (H + f.size * 2) / 300;
+      if (f.y < -f.size) { drop(floaters, i); continue; }
+      f.phase += 0.03;
+      drawPic(f.pic, f.x + (reduced ? 0 : Math.sin(f.phase) * 30), f.y, f.size, 0.9);
+    }
+    if (wordShow) drawWord(now);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -404,6 +679,7 @@
     if (opts.big) { burst(x, y, hue, true); playChord(noteIdx % 8, synthIdx); }
     else { burst(x, y, hue); playNote(noteIdx, synthIdx); }
     if (opts.ch) glyphs.push({ ch: opts.ch, x, y, hue, life: 1, size: Math.min(W, H) * 0.32 });
+    if (++bashes % 10 === 0 || bashes % 25 === 0) milestone(bashes);
   }
 
   async function begin() {
@@ -422,6 +698,7 @@
     hintEl.classList.add('show');
     setTimeout(() => hintEl.classList.remove('show'), 4000);
     hit('hello', W / 2, H / 2, { big: true });
+    bashes = 0; // the welcome burst doesn't count
   }
 
   function stop() {
@@ -430,6 +707,8 @@
     startEl.hidden = false;
     document.body.classList.remove('playing');
     cancelHold();
+    later.length = sweeps.length = floaters.length = 0;
+    wordShow = null; typed = '';
     try { navigator.keyboard && navigator.keyboard.unlock(); } catch (e) {}
   }
   document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) stop(); });
@@ -460,6 +739,7 @@
     const big = key === ' ' || key === 'Enter';
     const ch = key.length === 1 && key.trim() ? key.toUpperCase() : null;
     hit(e.code || key, rand(W * 0.1, W * 0.9), rand(H * 0.12, H * 0.88), { big, ch });
+    if (!e.repeat) feedKey(key);
   }, { capture: true });
   addEventListener('keyup', e => {
     e.preventDefault();

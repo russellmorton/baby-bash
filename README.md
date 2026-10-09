@@ -11,6 +11,8 @@ A full-screen toy for babies who love to bash the keyboard. Every key or tap set
 - All notes are from C major pentatonic, so mashing always sounds musical.
 - Each key always makes the same colour and sound, so cause and effect are easy to learn.
 - Letters and digits appear large on screen. Space and Enter make a big burst and a chord.
+- Every 10th bash gets a little extra, and it grows: a star ring at 10, a rainbow sweep at 25, a big sun, moon, heart or star floating up at 50, and fireworks at 100.
+- Spell a word and it appears with a picture, lighting up letter by letter with a note each: **cat dog cow pig bee duck fish**, **sun moon star tree ball car**, **mama dada papa nana baby**, and the names **Jack, Quinn, Elizabeth**. Space, Enter or a 2.5 second pause starts a fresh word.
 - Quiet master volume with a limiter. No strobing or white flashes.
 - Goes full screen with keyboard lock on the first key press. **Grown-ups: hold Esc to exit, or on a touch screen hold the ✕ in the top corner.**
 

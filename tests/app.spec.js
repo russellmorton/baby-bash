@@ -287,6 +287,125 @@ test.describe('visuals', () => {
   });
 });
 
+/** Press real keys one at a time, spaced past the 110ms per-key throttle. */
+async function typeSlowly(page, keys) {
+  for (const k of keys) {
+    await page.keyboard.press(k);
+    await page.waitForTimeout(140);
+  }
+}
+
+// Consonants only, so no run of these keys can spell one of the words
+const NO_WORDS = 'qwrtypsdfghjklzxvbnm'.split('');
+const distinctCodes = n => Array.from({ length: n }, (_, i) => 'X' + i);
+
+test.describe('spelling words', () => {
+  for (const [word, kind] of [['cat', 'animal'], ['moon', 'picture'], ['mama', 'family'], ['jack', 'name'], ['quinn', 'name'], ['elizabeth', 'name']]) {
+    test(`spelling ${word.toUpperCase()} (${kind}) shows the word`, async ({ page }) => {
+      const errors = await open(page);
+      await start(page);
+      await typeSlowly(page, word.split(''));
+      await page.waitForTimeout(300);
+      expect(await spy(page, 's => s.texts')).toContain(word.toUpperCase());
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('a word plays a note for each letter and then a chord', async ({ page }) => {
+    await open(page);
+    await start(page);
+    const before = await noteCount(page);
+    await typeSlowly(page, ['c', 'a', 't']);
+    await page.waitForTimeout(1200);
+    expect((await noteCount(page)) - before).toBeGreaterThanOrEqual(3 + 3 + 3);
+  });
+
+  test('a double letter still counts when typed fast', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await mash(page, ['KeyB', 'KeyA', 'KeyL', 'KeyL']);
+    await page.waitForTimeout(300);
+    expect(await spy(page, 's => s.texts')).toContain('BALL');
+  });
+
+  test('letters broken up by a space, or that do not spell a word, show nothing', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, ['c', 'a', 'Space', 't', 'x', 'q', 'z']);
+    await page.waitForTimeout(300);
+    const texts = await spy(page, 's => s.texts');
+    expect(texts.some(t => t.length > 1)).toBe(false);
+  });
+
+  test('holding a key down does not spell a word of repeated letters', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await page.evaluate(() => {
+      for (const key of ['d', 'o', 'o', 'g']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Key' + key.toUpperCase(), key, repeat: key === 'o', bubbles: true }));
+      }
+    });
+    await page.waitForTimeout(300);
+    expect((await spy(page, 's => s.texts')).includes('DOG')).toBe(false); // d, o, g = "dog" only if repeats were ignored
+  });
+});
+
+test.describe('bash milestones', () => {
+  test('the 10th bash adds a sparkle; the 9th does not', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, NO_WORDS.slice(0, 8));
+    let before = await noteCount(page);
+    await page.keyboard.press(NO_WORDS[8]);
+    await page.waitForTimeout(300);
+    expect((await noteCount(page)) - before).toBe(1);
+
+    before = await noteCount(page);
+    await page.keyboard.press(NO_WORDS[9]);
+    await page.waitForTimeout(300);
+    expect((await noteCount(page)) - before).toBe(1 + 2);
+  });
+
+  test('the 25th bash plays a rising run', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, Array.from({ length: 24 }, (_, i) => NO_WORDS[i % NO_WORDS.length]));
+    const before = await noteCount(page);
+    await page.keyboard.press('KeyV');
+    await page.waitForTimeout(1500);
+    expect((await noteCount(page)) - before).toBeGreaterThanOrEqual(1 + 5);
+  });
+
+  test('the 50th bash floats a big shape up the screen; the 49th does not', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await mash(page, distinctCodes(49));
+    await page.waitForTimeout(3500); // bursts and the 25th-bash sweep have cleared
+    const quiet = await brightPixels(page);
+    await mash(page, ['X49']);
+    await page.waitForTimeout(3500); // the shape is mid-screen by now
+    expect(await brightPixels(page)).toBeGreaterThan(quiet + 3000);
+  });
+
+  test('the 100th bash runs the fireworks without errors', async ({ page }) => {
+    const errors = await open(page);
+    await start(page);
+    await mash(page, distinctCodes(100));
+    await page.waitForTimeout(2500);
+    expect(errors).toEqual([]);
+    expect(await brightPixels(page)).toBeGreaterThan(1000);
+  });
+
+  test('the welcome burst does not count as a bash', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, NO_WORDS.slice(0, 9)); // 9 presses after the hello: no sparkle yet
+    const before = await noteCount(page);
+    await page.waitForTimeout(400);
+    expect((await noteCount(page)) - before).toBe(0);
+  });
+});
+
 test.describe('keeping little hands in the app', () => {
   test('keys have their browser default blocked (Tab, F5, Ctrl+R, Backspace)', async ({ page }) => {
     await open(page);
