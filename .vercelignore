@@ -1,0 +1,10 @@
+# Only the site itself goes to Vercel
+node_modules
+tests
+test-results
+playwright-report
+playwright.config.js
+package.json
+package-lock.json
+baby-bash.sh
+README.md

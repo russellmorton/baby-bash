@@ -1,0 +1,14 @@
+{
+  "name": "baby-bash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-screen keyboard-mashing toy for babies: colour bursts and synth notes",
+  "scripts": {
+    "test": "playwright test --project=default",
+    "test:perf": "playwright test --project=perf"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
+  }
+}
