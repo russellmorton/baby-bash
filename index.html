@@ -73,6 +73,16 @@
     line-height: 1.4; max-width: 24rem; text-wrap: balance;
   }
   #start:focus-visible .card { outline: 3px solid var(--glow); outline-offset: 6px; }
+  #start .links { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+  #start .links a {
+    display: grid; place-items: center;
+    width: 44px; height: 44px; border-radius: 50%;
+    color: var(--soft);
+    transition: color 0.2s ease, background-color 0.2s ease;
+  }
+  #start .links a:hover, #start .links a:focus-visible { color: var(--ink); background: var(--card); }
+  #start .links a:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  #start .links svg { width: 24px; height: 24px; fill: currentColor; }
 
   #hint {
     position: fixed; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
@@ -81,6 +91,26 @@
     z-index: 1; pointer-events: none;
   }
   #hint.show { opacity: 0.7; }
+
+  /* Touch screens have no Esc key: a faint corner button that must be held to exit */
+  #exit {
+    display: none;
+    position: fixed; z-index: 1;
+    top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px));
+    width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%;
+    background: var(--card); color: var(--soft);
+    opacity: 0.45; touch-action: none;
+  }
+  body.playing.touch #exit { display: grid; place-items: center; }
+  #exit svg { width: 100%; height: 100%; }
+  #exit .x { stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
+  #exit .ring {
+    fill: none; stroke: var(--glow); stroke-width: 3; stroke-linecap: round;
+    stroke-dasharray: 145; stroke-dashoffset: 145;
+    transform: rotate(-90deg); transform-origin: center;
+  }
+  #exit.holding { opacity: 0.9; }
+  #exit.holding .ring { stroke-dashoffset: 0; transition: stroke-dashoffset var(--hold) linear; }
 
   @keyframes bob { 50% { transform: translateY(-6px); } }
   @media (prefers-reduced-motion: reduce) { #start .go { animation: none; } }
@@ -93,10 +123,24 @@
   <div class="card">
     <h1>Baby Bash</h1>
     <div class="go">Tap, click or press any key</div>
-    <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc for a moment to get out.</div>
+    <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc, or the ✕ in the corner on a touch screen, for a moment to get out.</div>
+    <div class="links">
+      <a href="https://github.com/russellmorton/baby-bash" target="_blank" rel="noopener" aria-label="Baby Bash on GitHub" title="GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a href="https://x.com/russell_morton" target="_blank" rel="noopener" aria-label="@russell_morton on X" title="@russell_morton on X">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+      </a>
+    </div>
   </div>
 </div>
 <div id="hint">Hold Esc to exit</div>
+<button id="exit" type="button" aria-label="Hold to exit" tabindex="-1">
+  <svg viewBox="0 0 52 52" aria-hidden="true">
+    <circle class="ring" cx="26" cy="26" r="23"/>
+    <path class="x" d="M20 20l12 12M32 20L20 32"/>
+  </svg>
+</button>
 
 <script>
 (() => {
@@ -104,6 +148,7 @@
   const ctx = canvas.getContext('2d');
   const startEl = document.getElementById('start');
   const hintEl = document.getElementById('hint');
+  const exitEl = document.getElementById('exit');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let W = 0, H = 0, DPR = 1;
@@ -366,12 +411,14 @@
     if (started) return;
     started = true;
     startEl.hidden = true;
+    document.body.classList.add('playing');
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
       // In Chromium full screen this captures Ctrl+W, Alt+Tab and friends; Esc must then be held to exit.
       if (navigator.keyboard && navigator.keyboard.lock) await navigator.keyboard.lock();
     } catch (e) { /* fullscreen or keyboard lock not allowed here; carry on */ }
     try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) {}
+    hintEl.textContent = document.body.classList.contains('touch') ? 'Hold ✕ to exit' : 'Hold Esc to exit';
     hintEl.classList.add('show');
     setTimeout(() => hintEl.classList.remove('show'), 4000);
     hit('hello', W / 2, H / 2, { big: true });
@@ -381,6 +428,8 @@
     if (!started) return;
     started = false;
     startEl.hidden = false;
+    document.body.classList.remove('playing');
+    cancelHold();
     try { navigator.keyboard && navigator.keyboard.unlock(); } catch (e) {}
   }
   document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) stop(); });
@@ -391,15 +440,21 @@
   let escTimer = 0;
   function cancelEsc() { clearTimeout(escTimer); escTimer = 0; }
   function leave() {
-    escTimer = 0;
+    escTimer = 0; holdTimer = 0;
     if (document.fullscreenElement) document.exitFullscreen().catch(stop);
     else stop();
   }
 
   addEventListener('keydown', e => {
+    if (!started) {
+      // On the start card, Tab moves between the links and Enter follows one
+      if (e.key === 'Tab' || (e.key === 'Enter' && e.target.closest && e.target.closest('a'))) return;
+      e.preventDefault();
+      // Esc, or a key still auto-repeating from before, must not restart the toy straight after leaving
+      if (e.key !== 'Escape' && !e.repeat) begin();
+      return;
+    }
     e.preventDefault();
-    // Esc, or a key still auto-repeating from before, must not restart the toy straight after leaving
-    if (!started) { if (e.key !== 'Escape' && !e.repeat) begin(); return; }
     if (e.key === 'Escape' && !escTimer) escTimer = setTimeout(leave, ESC_HOLD_MS);
     const key = e.key || e.code;
     const big = key === ' ' || key === 'Enter';
@@ -412,8 +467,24 @@
   }, { capture: true });
   addEventListener('blur', cancelEsc);
 
-  addEventListener('pointerdown', e => {
+  // Phones have no Esc, and iPhones can't go full screen at all, so hold the corner ✕ instead
+  const EXIT_HOLD_MS = 1500;
+  exitEl.style.setProperty('--hold', EXIT_HOLD_MS + 'ms');
+  let holdTimer = 0;
+  function cancelHold() { clearTimeout(holdTimer); holdTimer = 0; exitEl.classList.remove('holding'); }
+  exitEl.addEventListener('pointerdown', e => {
     e.preventDefault();
+    e.stopPropagation(); // no burst under the button
+    if (holdTimer) return;
+    exitEl.classList.add('holding');
+    holdTimer = setTimeout(leave, EXIT_HOLD_MS);
+  });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave']) exitEl.addEventListener(type, cancelHold);
+
+  addEventListener('pointerdown', e => {
+    if (!started && e.target.closest('#start a')) return; // let link taps through
+    e.preventDefault();
+    if (e.pointerType && e.pointerType !== 'mouse') document.body.classList.add('touch');
     if (!started) { begin(); return; }
     hit('pointer' + Math.floor(Math.random() * 40), e.clientX, e.clientY);
   });
