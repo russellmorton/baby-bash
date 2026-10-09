@@ -297,12 +297,35 @@ test.describe('keeping little hands in the app', () => {
     expect(await page.evaluate(() => scrollY)).toBe(0);
   });
 
-  test('closing the page asks for confirmation once playing', async ({ page }) => {
+  test('closing the page does not ask for confirmation', async ({ page }) => {
     await open(page);
     await start(page);
-    const dialog = new Promise(res => page.once('dialog', d => { res(d.type()); d.dismiss(); }));
+    let dialog = null;
+    page.once('dialog', d => { dialog = d.type(); d.dismiss(); });
     await page.close({ runBeforeUnload: true });
-    expect(await dialog).toBe('beforeunload');
+    expect(dialog).toBeNull();
+  });
+
+  test('holding Esc for under a second exits; a quick tap does not', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await page.keyboard.down('Escape');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('Escape');
+    await page.waitForTimeout(800);
+    await expect(page.locator('#start')).toBeHidden();
+
+    await page.keyboard.down('Escape');
+    await expect(page.locator('#start')).toBeVisible({ timeout: 1000 });
+    // Auto-repeat from the still-held Esc, and its release, must not restart the toy
+    await page.keyboard.down('Escape');
+    await page.keyboard.up('Escape');
+    await page.waitForTimeout(200);
+    await expect(page.locator('#start')).toBeVisible();
+    expect(await page.evaluate(() => !!document.fullscreenElement)).toBe(false);
+
+    await page.keyboard.press('KeyQ');
+    await expect(page.locator('#start')).toBeHidden();
   });
 
   test('leaving full screen brings back the start card', async ({ page }) => {

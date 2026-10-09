@@ -93,7 +93,7 @@
   <div class="card">
     <h1>Baby Bash</h1>
     <div class="go">Tap, click or press any key</div>
-    <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc to get out.</div>
+    <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc for a moment to get out.</div>
   </div>
 </div>
 <div id="hint">Hold Esc to exit</div>
@@ -377,23 +377,40 @@
     hit('hello', W / 2, H / 2, { big: true });
   }
 
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement && started) {
-      started = false;
-      startEl.hidden = false;
-      try { navigator.keyboard && navigator.keyboard.unlock(); } catch (e) {}
-    }
-  });
+  function stop() {
+    if (!started) return;
+    started = false;
+    startEl.hidden = false;
+    try { navigator.keyboard && navigator.keyboard.unlock(); } catch (e) {}
+  }
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) stop(); });
+
+  // Under keyboard lock Chromium only lets go after Esc is held for about two seconds,
+  // so leave sooner ourselves. Releasing Esc early cancels.
+  const ESC_HOLD_MS = 800;
+  let escTimer = 0;
+  function cancelEsc() { clearTimeout(escTimer); escTimer = 0; }
+  function leave() {
+    escTimer = 0;
+    if (document.fullscreenElement) document.exitFullscreen().catch(stop);
+    else stop();
+  }
 
   addEventListener('keydown', e => {
     e.preventDefault();
-    if (!started) { begin(); return; }
+    // Esc, or a key still auto-repeating from before, must not restart the toy straight after leaving
+    if (!started) { if (e.key !== 'Escape' && !e.repeat) begin(); return; }
+    if (e.key === 'Escape' && !escTimer) escTimer = setTimeout(leave, ESC_HOLD_MS);
     const key = e.key || e.code;
     const big = key === ' ' || key === 'Enter';
     const ch = key.length === 1 && key.trim() ? key.toUpperCase() : null;
     hit(e.code || key, rand(W * 0.1, W * 0.9), rand(H * 0.12, H * 0.88), { big, ch });
   }, { capture: true });
-  addEventListener('keyup', e => e.preventDefault(), { capture: true });
+  addEventListener('keyup', e => {
+    e.preventDefault();
+    if (e.key === 'Escape') cancelEsc();
+  }, { capture: true });
+  addEventListener('blur', cancelEsc);
 
   addEventListener('pointerdown', e => {
     e.preventDefault();
@@ -402,9 +419,6 @@
   });
   addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('wheel', e => e.preventDefault(), { passive: false });
-
-  // Last line of defence against a stray Ctrl+W when the browser won't let us block it
-  addEventListener('beforeunload', e => { if (started) { e.preventDefault(); e.returnValue = ''; } });
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && started && navigator.wakeLock) {
