@@ -300,7 +300,7 @@ const NO_WORDS = 'qwrtypsdfghjklzxvbnm'.split('');
 const distinctCodes = n => Array.from({ length: n }, (_, i) => 'X' + i);
 
 test.describe('spelling words', () => {
-  for (const [word, kind] of [['cat', 'animal'], ['moon', 'picture'], ['mama', 'family'], ['jack', 'name'], ['quinn', 'name'], ['elizabeth', 'name']]) {
+  for (const [word, kind] of [['cat', 'animal'], ['moon', 'picture'], ['mama', 'family'], ['jack', 'name'], ['quinn', 'name'], ['elizabeth', 'name'], ['gunnar', 'name']]) {
     test(`spelling ${word.toUpperCase()} (${kind}) shows the word`, async ({ page }) => {
       const errors = await open(page);
       await start(page);

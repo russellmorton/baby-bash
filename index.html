@@ -477,7 +477,7 @@
   const WORDS = {};
   for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
   for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
-  for (const w of 'jack quinn elizabeth star'.split(' ')) WORDS[w] = 'star';
+  for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
   const NAMES = new Set(['jack', 'quinn', 'elizabeth']);
   const WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
   const LETTER_MS = 220;
