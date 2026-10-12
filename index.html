@@ -115,6 +115,14 @@
   @keyframes bob { 50% { transform: translateY(-6px); } }
   @media (prefers-reduced-motion: reduce) { #start .go { animation: none; } }
 </style>
+<script>
+  // Vercel Web Analytics. Only on the deployed site: the script isn't there when opened locally or from the launcher.
+  if (location.protocol === 'https:') {
+    const s = document.createElement('script');
+    s.src = '/_vercel/insights/script.js';
+    document.head.appendChild(s);
+  }
+</script>
 </head>
 <body>
 <canvas id="sky"></canvas>

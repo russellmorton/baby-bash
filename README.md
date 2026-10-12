@@ -38,7 +38,7 @@ Tests use the system Chromium at `/usr/bin/chromium` when it exists (set `CHROMI
 
 ## Deploy
 
-Hosted on Vercel, which deploys every push to `main`. It's a single static page with no build step. `vercel.json` serves the repo root as-is and `.vercelignore` keeps tests and tooling out of the deployment.
+Hosted on Vercel, which deploys every push to `main`. It's a single static page with no build step. `vercel.json` serves the repo root as-is and `.vercelignore` keeps tests and tooling out of the deployment. Vercel Web Analytics counts visits to the live site (no cookies); copies opened locally or with `baby-bash.sh` aren't counted.
 
 ## License
 
