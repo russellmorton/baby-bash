@@ -13,7 +13,7 @@ A full-screen toy for babies who love to bash the keyboard. Every key or tap set
 - Letters and digits appear large on screen. Space and Enter make a big burst and a chord.
 - Every 10th bash gets a little extra, and it grows: a star ring at 10, a rainbow sweep at 25, a big sun, moon, heart or star floating up at 50, and fireworks at 100.
 - Spell a word and it appears with a picture, lighting up letter by letter with a note each: **cat dog cow pig bee duck fish**, **sun moon star tree ball car**, **mama dada papa nana baby**, and the names **Jack, Quinn, Elizabeth, Gunnar**. Space, Enter or a 2.5 second pause starts a fresh word.
-- **At Halloween** (all of October) it dresses up: an orange moon with bats flapping past, every colour pumpkin orange, purple or slime green, bats instead of stars in the bursts, and a pumpkin, ghost or bat floating up at 50. **boo**, **ghost**, **bat** and **pumpkin** spell out too. Add `?halloween=1` to the address to see it on any day, or `?halloween=0` to switch it off.
+- **At Halloween** (all of October) it dresses up: an orange moon with bats flapping past, every colour pumpkin orange, purple or slime green, bats instead of stars in the bursts, and Halloween rewards: a ring of jack-o'-lanterns at 10, a ghost swooping across with a trail of bats at 25, a pumpkin, ghost or bat floating up at 50, and pumpkin fireworks with a flock of bats at 100. **boo**, **ghost**, **bat** and **pumpkin** spell out too. Add `?halloween=1` to the address to see it on any day, or `?halloween=0` to switch it off.
 - Quiet master volume with a limiter. No strobing or white flashes.
 - Goes full screen with keyboard lock on the first key press. **Grown-ups: hold Esc to exit, or on a touch screen hold the ✕ in the top corner.**
 

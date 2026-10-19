@@ -556,6 +556,45 @@ test.describe('Halloween', () => {
     expect(await spy(page, 's => s.texts')).not.toContain('BOO');
   });
 
+  test('the 10th bash flings out a ring of jack-o\'-lanterns', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    await typeSlowly(page, NO_WORDS.slice(0, 9));
+    await page.waitForTimeout(3500);
+    const box = { x: 440, y: 200, w: 400, h: 400 }; // round the middle of the screen
+    const quiet = await brightPixels(page, box);
+    await page.keyboard.press(NO_WORDS[9]);
+    await page.waitForTimeout(400);
+    expect(await brightPixels(page, box)).toBeGreaterThan(quiet + 2000);
+    expect(errors).toEqual([]);
+  });
+
+  test('the 25th bash sends a ghost flying across the screen', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    await typeSlowly(page, Array.from({ length: 24 }, (_, i) => NO_WORDS[i % NO_WORDS.length]));
+    await page.waitForTimeout(3500);
+    await page.keyboard.press('KeyV');
+    await page.waitForTimeout(700); // the ghost is near the middle by now
+    const ghostly = await page.evaluate(() => {
+      const c = document.getElementById('sky'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 225 && d[i + 1] > 220 && d[i + 2] > 235) n++; // the ghost's pale lilac
+      return n;
+    });
+    expect(ghostly).toBeGreaterThan(2000);
+    expect(errors).toEqual([]);
+  });
+
+  test('the 100th bash throws pumpkin fireworks and a flock of bats without errors', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    await mash(page, distinctCodes(100));
+    await page.waitForTimeout(2500);
+    expect(errors).toEqual([]);
+    expect(await brightPixels(page)).toBeGreaterThan(1000);
+  });
+
   test('the 50th bash floats a pumpkin up past the moon', async ({ page }) => {
     const errors = await open(page, { halloween: 1 });
     await start(page);

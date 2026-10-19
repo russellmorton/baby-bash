@@ -616,7 +616,9 @@
 
   /* ---------- Milestones ---------- */
   // Every 10th bash gets a little extra, and the reward grows: 10 star ring, 25 rainbow sweep,
-  // 50 a big shape floats up, 100 fireworks.
+  // 50 a big shape floats up, 100 fireworks. At Halloween: 10 a ring of jack-o'-lanterns, 25 a ghost
+  // flying across with a trail of bats, 50 a pumpkin, ghost, bat or moon, 100 pumpkin fireworks and
+  // a flock of bats.
   let bashes = 0;
   const FLOATS = HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : ['sun', 'moon', 'heart', 'star'];
 
@@ -626,8 +628,19 @@
       for (let i = 0; i < 6; i++) {
         later.push({
           at: performance.now() + i * 260,
-          fn: () => { burst(rand(W * 0.15, W * 0.85), rand(H * 0.15, H * 0.7), HALLOWEEN ? keyHue(i) : rand(0, 360), true); playNote(8 + i * 2, 1, 0.6); },
+          fn: () => {
+            const x = rand(W * 0.15, W * 0.85), y = rand(H * 0.15, H * 0.7);
+            burst(x, y, HALLOWEEN ? keyHue(i) : rand(0, 360), true);
+            if (HALLOWEEN) pumpkinRing(x, y, reduced ? 4 : 7, 6);
+            playNote(8 + i * 2, 1, 0.6);
+          },
         });
+      }
+      if (HALLOWEEN) {
+        for (let i = 0; i < 6; i++) {
+          const size = Math.min(W, H) * rand(0.1, 0.16);
+          floaters.push({ pic: 'bat', x: W * (0.1 + i * 0.16), y: H + size + i * size * 0.6, size, phase: Math.random() * 6, flap: true });
+        }
       }
       playChord(7, 1);
     } else if (n % 50 === 0) {
@@ -635,8 +648,12 @@
       floaters.push({ pic: FLOATS[(n / 50 - 1) % FLOATS.length], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
       arp([5, 7, 9, 11, 13], 1, 110, 0.6);
     } else if (n % 25 === 0) {
-      sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : rand(0, 360) });
+      sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : rand(0, 360), ghost: HALLOWEEN ? Math.min(W, H) * 0.22 : 0 });
       arp([3, 4, 5, 6, 7, 8], 0, 190, 0.5);
+    } else if (HALLOWEEN) {
+      pumpkinRing(cx, cy, reduced ? 6 : 10, 4.5);
+      rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue: 28, life: 1 });
+      arp([9, 11], 1, 90, 0.6);
     } else {
       const count = reduced ? 8 : 18, hue = HALLOWEEN ? keyHue(Math.random() * 1e6 | 0) : rand(0, 360);
       for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
@@ -650,6 +667,28 @@
       rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue, life: 1 });
       arp([9, 11], 1, 90, 0.6);
     }
+  }
+
+  // Little jack-o'-lanterns flung out in a spinning ring.
+  function pumpkinRing(x, y, count, speed) {
+    for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
+      const a = i / count * Math.PI * 2;
+      particles.push({
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+        r: 28, hue: 28, life: 1, decay: 0.008,
+        pumpkin: true, spin: rand(-0.08, 0.08), rot: 0,
+      });
+    }
+  }
+  let pumpkinImg = null;
+  function pumpkinSprite() {
+    if (pumpkinImg) return pumpkinImg;
+    pumpkinImg = document.createElement('canvas');
+    pumpkinImg.width = pumpkinImg.height = SPRITE;
+    const g = pumpkinImg.getContext('2d');
+    g.translate(SPRITE / 2, SPRITE / 2 + 3); g.scale(SPRITE / 108, SPRITE / 108);
+    PICS.pumpkin(g);
+    return pumpkinImg;
   }
 
   // Halloween: a big orange moon, with two bats flapping slowly past it.
@@ -680,14 +719,14 @@
     }
     for (let i = sweeps.length - 1; i >= 0; i--) {
       const s = sweeps[i];
-      s.x += W / 80;
-      if (s.x > W + 20) { drop(sweeps, i); continue; }
+      s.x += W / (s.ghost ? 160 : 80); // the Halloween ghost takes its time, so it can be seen
+      if (s.x > W + 20 + s.ghost) { drop(sweeps, i); continue; }
       for (let k = 0; k < (reduced ? 2 : 5) && particles.length < MAX_PARTICLES; k++) {
         particles.push({
           x: s.x, y: H * 0.5 + Math.sin(s.x / (W / 6)) * H * 0.22 + (k - 2) * H * 0.035,
           vx: rand(-0.3, 0.3), vy: rand(-1, 0),
           r: rand(7, 12), hue: HALLOWEEN ? keyHue(Math.floor(s.x / W * 6) + k) : (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
-          star: k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
+          star: HALLOWEEN || k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
         });
       }
     }
@@ -718,10 +757,13 @@
       if (p.life <= 0) { drop(particles, i); continue; }
       const r = p.r * (0.4 + 0.6 * p.life);
       ctx.globalAlpha = p.life;
-      if (p.star) {
+      if (p.star || p.pumpkin) {
         const c = Math.cos(p.rot) * DPR, sn = Math.sin(p.rot) * DPR;
         ctx.setTransform(c, sn, -sn, c, p.x * DPR, p.y * DPR);
-        ctx.drawImage(sprite(p.hue, true), -r, -r, r * 2, r * 2);
+        // pumpkins keep their own colours instead of glowing like the rest
+        if (p.pumpkin) ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(p.pumpkin ? pumpkinSprite() : sprite(p.hue, true), -r, -r, r * 2, r * 2);
+        if (p.pumpkin) ctx.globalCompositeOperation = 'lighter';
       } else {
         ctx.drawImage(sprite(p.hue, false), p.x - r, p.y - r, r * 2, r * 2);
       }
@@ -745,7 +787,22 @@
       f.y -= (H + f.size * 2) / 300;
       if (f.y < -f.size) { drop(floaters, i); continue; }
       f.phase += 0.03;
-      drawPic(f.pic, f.x + (reduced ? 0 : Math.sin(f.phase) * 30), f.y, f.size, 0.9);
+      if (f.flap && !reduced) {
+        ctx.save();
+        ctx.translate(f.x + Math.sin(f.phase) * 30, f.y); ctx.scale(f.size / 100, f.size / 100 * (0.7 + 0.3 * Math.sin(f.phase * 9)));
+        PICS.bat(ctx);
+        ctx.restore();
+      } else drawPic(f.pic, f.x + (reduced ? 0 : Math.sin(f.phase) * 30), f.y, f.size, 0.9);
+    }
+    // the Halloween ghost leads its sweep, swooping along the same wave
+    for (const s of sweeps) {
+      if (!s.ghost) continue;
+      const x = s.x + s.ghost * 0.4, y = H * 0.5 + Math.sin(x / (W / 6)) * H * 0.22;
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(Math.cos(x / (W / 6)) * 0.25);
+      ctx.scale(s.ghost / 100, s.ghost / 100);
+      PICS.ghost(ctx);
+      ctx.restore();
     }
     if (wordShow) drawWord(now);
     requestAnimationFrame(frame);
