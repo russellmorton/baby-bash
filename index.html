@@ -62,6 +62,9 @@
     -webkit-background-clip: text; background-clip: text;
     color: transparent;
   }
+  /* Halloween (October, see HALLOWEEN below): pumpkin, purple and slime green */
+  body.halloween #start h1 { background-image: linear-gradient(90deg, #ff8c1a, #ffb347, #b77cff, #8a5cf0, #9dff7a); }
+  #start .boo { font-size: clamp(1.3rem, 4.5vw, 1.8rem); font-weight: 800; color: #ff9a3c; }
   #start .go {
     font-size: clamp(1.2rem, 4vw, 1.6rem);
     font-weight: 600;
@@ -130,6 +133,7 @@
 <div id="start" tabindex="0" role="button" aria-label="Start Baby Bash">
   <div class="card">
     <h1>Baby Bash</h1>
+    <div class="boo" hidden>Happy Halloween!</div>
     <div class="go">Tap, click or press any key</div>
     <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc, or the ✕ in the corner on a touch screen, for a moment to get out.</div>
     <div class="links">
@@ -158,6 +162,15 @@
   const hintEl = document.getElementById('hint');
   const exitEl = document.getElementById('exit');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Dressed up for Halloween all of October: ?halloween=1 or ?halloween=0 switches it on or off on any day.
+  const HALLOWEEN = (() => {
+    const ask = new URLSearchParams(location.search).get('halloween');
+    return ask === '1' || ask === '0' ? ask === '1' : new Date().getMonth() === 9;
+  })();
+  if (HALLOWEEN) {
+    document.body.classList.add('halloween');
+    startEl.querySelector('.boo').hidden = false;
+  }
 
   let W = 0, H = 0, DPR = 1;
   function resize() {
@@ -303,6 +316,15 @@
     return h >>> 0;
   }
   const rand = (a, b) => a + Math.random() * (b - a);
+  // A key's colour. At Halloween every hue lands in pumpkin orange, purple or slime green.
+  const SPOOKY_HUES = [[18, 40], [262, 296], [88, 128]];
+  function keyHue(h) {
+    if (!HALLOWEEN) return h % 360;
+    h = Math.abs(Math.floor(h));
+    const [a, b] = SPOOKY_HUES[h % 3];
+    return a + (h >>> 4) % (b - a);
+  }
+  const spread = () => HALLOWEEN ? rand(-12, 12) : rand(-35, 35);
 
   function burst(x, y, hue, big = false) {
     const count = (big ? 110 : 55) * (reduced ? 0.4 : 1);
@@ -314,7 +336,7 @@
         x, y,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         r: rand(3, big ? 14 : 10),
-        hue: (hue + rand(-35, 35) + 360) % 360,
+        hue: (hue + spread() + 360) % 360,
         life: 1,
         decay: rand(0.008, 0.02),
         star: shape === 1 || (shape === 2 && Math.random() < 0.4),
@@ -322,7 +344,7 @@
       });
     }
     rings.push({ x, y, r: 10, max: big ? Math.max(W, H) * 0.6 : rand(120, 260), hue, life: 1 });
-    if (big) rings.push({ x, y, r: 4, max: Math.max(W, H) * 0.4, hue: (hue + 120) % 360, life: 1 });
+    if (big) rings.push({ x, y, r: 4, max: Math.max(W, H) * 0.4, hue: HALLOWEEN ? keyHue((hue | 0) + 1) : (hue + 120) % 360, life: 1 });
   }
 
   // Each colour/shape is drawn once to a small sprite, then stamped with drawImage.
@@ -338,7 +360,17 @@
     const g = c.getContext('2d'), m = SPRITE / 2;
     g.fillStyle = `hsl(${Math.round(hue / 10) * 10}, 100%, 64%)`;
     g.beginPath();
-    if (star) {
+    if (star && HALLOWEEN) {
+      // a little bat: two scalloped wings, a round body and pointy ears
+      for (const s of [-1, 1]) {
+        g.moveTo(m, m - 4);
+        g.lineTo(m + s * 18, m - 14); g.lineTo(m + s * 31, m - 6);
+        g.quadraticCurveTo(m + s * 24, m + 2, m + s * 22, m + 10); g.quadraticCurveTo(m + s * 17, m + 3, m + s * 12, m + 9);
+        g.quadraticCurveTo(m + s * 8, m + 2, m, m + 6);
+        g.moveTo(m + s * 3, m - 8); g.lineTo(m + s * 7, m - 19); g.lineTo(m + s * 10, m - 6);
+      }
+      g.moveTo(m + 11, m); g.arc(m, m, 11, 0, Math.PI * 2);
+    } else if (star) {
       for (let i = 0; i < 10; i++) {
         const rr = i % 2 ? m * 0.45 : m - 1, a = -Math.PI / 2 + i * Math.PI / 5;
         g.lineTo(m + Math.cos(a) * rr, m + Math.sin(a) * rr);
@@ -464,6 +496,33 @@
       disc(g, 14, -14, 18, 'hsl(50, 100%, 62%)');
       oval(g, 34, -10, 10, 5, 'hsl(28, 100%, 58%)'); disc(g, 18, -18, 3.5, EYE);
     },
+    pumpkin(g) {
+      poly(g, 'hsl(85, 45%, 34%)', [-5, -30, -9, -48, 4, -50, 6, -30]);
+      oval(g, -20, 4, 22, 34, 'hsl(26, 95%, 50%)'); oval(g, 20, 4, 22, 34, 'hsl(26, 95%, 50%)');
+      oval(g, 0, 4, 22, 36, 'hsl(28, 100%, 56%)');
+      poly(g, 'hsl(50, 100%, 70%)', [-24, -2, -8, -2, -16, -16]); poly(g, 'hsl(50, 100%, 70%)', [24, -2, 8, -2, 16, -16]);
+      g.fillStyle = 'hsl(50, 100%, 70%)'; g.beginPath(); g.moveTo(-26, 12); g.quadraticCurveTo(0, 38, 26, 12); g.quadraticCurveTo(0, 22, -26, 12); g.fill();
+    },
+    ghost(g) {
+      g.fillStyle = 'hsl(260, 60%, 95%)'; g.beginPath(); g.moveTo(-32, 40); g.lineTo(-32, -6);
+      g.bezierCurveTo(-32, -52, 32, -52, 32, -6); g.lineTo(32, 40);
+      for (let i = 0; i < 4; i++) { const x = 32 - (i + 1) * 16; g.quadraticCurveTo(x + 8, 40 + (i % 2 ? 6 : 12), x, 40); }
+      g.fill();
+      oval(g, -12, -8, 6, 8, EYE); oval(g, 12, -8, 6, 8, EYE);
+      oval(g, 0, 12, 6, 8, EYE);
+      disc(g, -22, 6, 5, 'hsla(345, 90%, 75%, 0.6)'); disc(g, 22, 6, 5, 'hsla(345, 90%, 75%, 0.6)');
+    },
+    bat(g) {
+      const c = 'hsl(275, 55%, 55%)';
+      for (const s of [-1, 1]) {
+        g.fillStyle = c; g.beginPath(); g.moveTo(s * 8, -8); g.lineTo(s * 26, -26); g.lineTo(s * 50, -10);
+        g.quadraticCurveTo(s * 40, 0, s * 38, 14); g.quadraticCurveTo(s * 30, 2, s * 22, 12); g.quadraticCurveTo(s * 15, 2, s * 6, 10); g.fill();
+        poly(g, c, [s * 4, -14, s * 12, -34, s * 18, -12]);
+      }
+      disc(g, 0, -2, 18, c);
+      disc(g, -7, -5, 4, 'hsl(50, 100%, 75%)'); disc(g, 7, -5, 4, 'hsl(50, 100%, 75%)');
+      poly(g, '#fff', [-5, 7, -2, 7, -3.5, 12]); poly(g, '#fff', [2, 7, 5, 7, 3.5, 12]);
+    },
     fish(g) {
       poly(g, 'hsl(210, 80%, 52%)', [24, 0, 48, -22, 48, 22]);
       poly(g, 'hsl(210, 80%, 52%)', [-10, -18, 6, -34, 10, -16]);
@@ -486,6 +545,7 @@
   for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
   for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
   for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
+  if (HALLOWEEN) { WORDS.boo = WORDS.ghost = 'ghost'; WORDS.bat = 'bat'; WORDS.pumpkin = 'pumpkin'; }
   const NAMES = new Set(['jack', 'quinn', 'elizabeth']);
   const WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
   const LETTER_MS = 220;
@@ -507,10 +567,10 @@
     const now = performance.now();
     const n = w.length;
     wordShow = { word: w.toUpperCase(), pic: WORDS[w], start: now, dur: Math.max(3200, n * LETTER_MS + 1800) };
-    burst(W / 2, H * 0.36, hash('Key' + w[0].toUpperCase()) % 360, true);
+    burst(W / 2, H * 0.36, keyHue(hash('Key' + w[0].toUpperCase())), true);
     if (NAMES.has(w)) {
       for (let i = 1; i <= 3; i++) {
-        later.push({ at: now + i * 300, fn: () => burst(rand(W * 0.2, W * 0.8), rand(H * 0.15, H * 0.6), rand(0, 360), true) });
+        later.push({ at: now + i * 300, fn: () => burst(rand(W * 0.2, W * 0.8), rand(H * 0.15, H * 0.6), HALLOWEEN ? keyHue(i) : rand(0, 360), true) });
       }
     }
     // One rising note per letter, as it lights up, then a chord
@@ -547,7 +607,7 @@
       ctx.translate(lx + lw / 2, y);
       ctx.scale(1 + 0.35 * pulse, 1 + 0.35 * pulse);
       ctx.globalAlpha = fade * (p > 0 ? 1 : 0.6);
-      ctx.fillStyle = `hsl(${hash('Key' + ch) % 360}, 100%, ${70 + pulse * 10}%)`;
+      ctx.fillStyle = `hsl(${keyHue(hash('Key' + ch))}, 100%, ${70 + pulse * 10}%)`;
       ctx.fillText(ch, -lw / 2, 0);
       ctx.restore();
     }
@@ -558,7 +618,7 @@
   // Every 10th bash gets a little extra, and the reward grows: 10 star ring, 25 rainbow sweep,
   // 50 a big shape floats up, 100 fireworks.
   let bashes = 0;
-  const FLOATS = ['sun', 'moon', 'heart', 'star'];
+  const FLOATS = HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : ['sun', 'moon', 'heart', 'star'];
 
   function milestone(n) {
     const cx = W / 2, cy = H / 2;
@@ -566,7 +626,7 @@
       for (let i = 0; i < 6; i++) {
         later.push({
           at: performance.now() + i * 260,
-          fn: () => { burst(rand(W * 0.15, W * 0.85), rand(H * 0.15, H * 0.7), rand(0, 360), true); playNote(8 + i * 2, 1, 0.6); },
+          fn: () => { burst(rand(W * 0.15, W * 0.85), rand(H * 0.15, H * 0.7), HALLOWEEN ? keyHue(i) : rand(0, 360), true); playNote(8 + i * 2, 1, 0.6); },
         });
       }
       playChord(7, 1);
@@ -575,20 +635,41 @@
       floaters.push({ pic: FLOATS[(n / 50 - 1) % FLOATS.length], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
       arp([5, 7, 9, 11, 13], 1, 110, 0.6);
     } else if (n % 25 === 0) {
-      sweeps.push({ x: -20, hue: rand(0, 360) });
+      sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : rand(0, 360) });
       arp([3, 4, 5, 6, 7, 8], 0, 190, 0.5);
     } else {
-      const count = reduced ? 8 : 18, hue = rand(0, 360);
+      const count = reduced ? 8 : 18, hue = HALLOWEEN ? keyHue(Math.random() * 1e6 | 0) : rand(0, 360);
       for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
         const a = i / count * Math.PI * 2;
         particles.push({
           x: cx, y: cy, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7,
-          r: 12, hue: (hue + i * 360 / count) % 360, life: 1, decay: 0.012,
+          r: 12, hue: HALLOWEEN ? keyHue(i) : (hue + i * 360 / count) % 360, life: 1, decay: 0.012,
           star: true, spin: 0.08, rot: 0,
         });
       }
       rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue, life: 1 });
       arp([9, 11], 1, 90, 0.6);
+    }
+  }
+
+  // Halloween: a big orange moon, with two bats flapping slowly past it.
+  function spookySky(now) {
+    const r = Math.min(W, H) * 0.09, mx = W * 0.84, my = Math.max(r * 1.6, H * 0.17);
+    const glow = ctx.createRadialGradient(mx, my, r * 0.8, mx, my, r * 2.4);
+    glow.addColorStop(0, 'hsla(30, 100%, 60%, 0.12)'); glow.addColorStop(1, 'hsla(30, 100%, 60%, 0)');
+    ctx.fillStyle = glow; ctx.fillRect(mx - r * 2.4, my - r * 2.4, r * 4.8, r * 4.8);
+    disc(ctx, mx, my, r, 'hsl(32, 90%, 62%)');
+    disc(ctx, mx - r * 0.35, my + r * 0.2, r * 0.18, 'hsl(28, 80%, 54%)');
+    disc(ctx, mx + r * 0.3, my - r * 0.3, r * 0.12, 'hsl(28, 80%, 54%)');
+    const t = reduced ? 0 : now / 1000;
+    for (let i = 0; i < 2; i++) {
+      const span = W + 200, x = (t * (34 + i * 14) + i * span * 0.55) % span - 100;
+      const y = H * (0.12 + i * 0.13) + Math.sin(t * 1.5 + i * 3) * H * 0.02;
+      const size = Math.min(W, H) * (0.07 - i * 0.015), flap = reduced ? 1 : 0.75 + 0.25 * Math.sin(t * 9 + i);
+      ctx.save();
+      ctx.translate(x, y); ctx.scale(size / 100, size / 100 * flap);
+      PICS.bat(ctx);
+      ctx.restore();
     }
   }
 
@@ -605,16 +686,17 @@
         particles.push({
           x: s.x, y: H * 0.5 + Math.sin(s.x / (W / 6)) * H * 0.22 + (k - 2) * H * 0.035,
           vx: rand(-0.3, 0.3), vy: rand(-1, 0),
-          r: rand(7, 12), hue: (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
+          r: rand(7, 12), hue: HALLOWEEN ? keyHue(Math.floor(s.x / W * 6) + k) : (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
           star: k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
         });
       }
     }
-    bgHue = (bgHue + 0.03) % 360;
+    bgHue = HALLOWEEN ? 272 + Math.sin(now / 9000) * 12 : (bgHue + 0.03) % 360;
     // Translucent wash leaves soft trails behind everything
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = `hsla(${bgHue}, 50%, 7%, ${reduced ? 0.5 : 0.16})`;
     ctx.fillRect(0, 0, W, H);
+    if (HALLOWEEN) spookySky(now);
 
     ctx.globalCompositeOperation = 'lighter';
     for (let i = rings.length - 1; i >= 0; i--) {
@@ -681,7 +763,7 @@
     lastHit.set(id, now);
 
     const h = hash(id);
-    const hue = h % 360;
+    const hue = keyHue(h);
     const noteIdx = h % NOTES.length;
     const synthIdx = (h >>> 8) % SYNTHS.length;
     if (opts.big) { burst(x, y, hue, true); playChord(noteIdx % 8, synthIdx); }

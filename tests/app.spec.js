@@ -6,14 +6,17 @@ const path = require('path');
 const APP = process.env.APP_URL || 'file://' + path.resolve(__dirname, '..', 'index.html');
 const PENTATONIC = new Set([0, 2, 4, 7, 9]); // C D E G A
 
-/** Open the app with the spy installed and Google Fonts stubbed out (no network in tests). */
-async function open(page) {
+/**
+ * Open the app with the spy installed and Google Fonts stubbed out (no network in tests).
+ * Halloween (all of October) is off unless asked for, so the tests don't depend on the date.
+ */
+async function open(page, { halloween = 0 } = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.addInitScript({ path: path.join(__dirname, 'spy.js') });
-  await page.goto(APP);
+  await page.goto(halloween === null ? APP : `${APP}?halloween=${halloween}`);
   return errors;
 }
 
@@ -499,5 +502,69 @@ test.describe('keeping little hands in the app', () => {
     await expect(page.locator('#start')).toBeVisible();
     await page.keyboard.press('KeyQ');
     await expect(page.locator('#start')).toBeHidden();
+  });
+});
+
+test.describe('Halloween', () => {
+  /** Whether a hue is pumpkin orange, purple or slime green. */
+  const spooky = h => (h >= 15 && h <= 42) || (h >= 258 && h <= 300) || (h >= 85 && h <= 130);
+
+  test('is on in October and off the rest of the year', async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 9, 31, 18, 0));
+    await open(page, { halloween: null });
+    await expect(page.locator('#start .boo')).toHaveText('Happy Halloween!');
+    await expect(page.locator('#start .boo')).toBeVisible();
+    await page.clock.setFixedTime(new Date(2026, 10, 1, 9, 0));
+    await page.reload();
+    await expect(page.locator('#start .boo')).toBeHidden();
+  });
+
+  test('every letter is orange, purple or green, and each key keeps its colour', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    for (const k of 'abcdefghijklmnopqrstuvwxyz'.split('')) {
+      await page.keyboard.press(k);
+      await page.waitForTimeout(20);
+    }
+    await page.waitForTimeout(150); // the last letters are drawn on the next frames
+    const glyphs = await spy(page, 's => s.glyphs');
+    expect(glyphs.length).toBe(26);
+    const hues = glyphs.map(g => hueOf(g.color));
+    expect(hues.filter(h => !spooky(h)), `hues: ${hues.map(Math.round).join(', ')}`).toEqual([]);
+    expect(new Set(hues.map(h => h < 60 ? 'orange' : h < 200 ? 'green' : 'purple')).size).toBe(3);
+    expect(errors).toEqual([]);
+  });
+
+  test('BOO, BAT and PUMPKIN spell out with their pictures', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    for (const word of ['boo', 'bat', 'pumpkin']) {
+      await typeSlowly(page, word.split(''));
+      await page.keyboard.press('Space');
+    }
+    await page.waitForTimeout(300);
+    const texts = await spy(page, 's => s.texts');
+    for (const word of ['BOO', 'BAT', 'PUMPKIN']) expect(texts).toContain(word);
+    expect(errors).toEqual([]);
+  });
+
+  test('Halloween words are just letters the rest of the year', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, ['b', 'o', 'o']);
+    await page.waitForTimeout(300);
+    expect(await spy(page, 's => s.texts')).not.toContain('BOO');
+  });
+
+  test('the 50th bash floats a pumpkin up past the moon', async ({ page }) => {
+    const errors = await open(page, { halloween: 1 });
+    await start(page);
+    await mash(page, distinctCodes(49));
+    await page.waitForTimeout(3500);
+    const quiet = await brightPixels(page);
+    await mash(page, ['X49']);
+    await page.waitForTimeout(3500);
+    expect(await brightPixels(page)).toBeGreaterThan(quiet + 3000);
+    expect(errors).toEqual([]);
   });
 });
