@@ -480,6 +480,7 @@ test.describe('keeping little hands in the app', () => {
     await expect(exit).toBeHidden(); // keyboard and mouse users have Esc
     await touch(null, 'pointerdown'); // first touch reveals it
     await expect(exit).toBeVisible();
+    await page.waitForTimeout(200); // the hello chord's staggered notes have all started
     const notesBefore = await noteCount(page);
     await touch('#exit', 'pointerdown');
     await page.waitForTimeout(500);
