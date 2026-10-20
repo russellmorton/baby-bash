@@ -64,6 +64,16 @@
   }
   /* Halloween (October, see HALLOWEEN below): pumpkin, purple and slime green */
   body.halloween #start h1 { background-image: linear-gradient(90deg, #ff8c1a, #ffb347, #b77cff, #8a5cf0, #9dff7a); }
+  #start .switch {
+    display: flex; align-items: center; gap: 0.5rem; min-height: 44px; margin-top: 0.3rem; padding: 0.2rem 0.9rem 0.2rem 0.5rem;
+    border: 0; border-radius: 999px; background: var(--card); color: var(--ink); font: 800 1rem var(--font-display); cursor: pointer;
+  }
+  #start .switch svg { width: 28px; height: 28px; }
+  #start .switch .knob { width: 38px; height: 22px; border-radius: 999px; background: rgba(255,255,255,0.18); position: relative; transition: background 0.2s ease; }
+  #start .switch .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform 0.2s ease; }
+  #start .switch[aria-pressed="true"] .knob { background: #ff8c1a; }
+  #start .switch[aria-pressed="true"] .knob::after { transform: translateX(16px); }
+  #start .switch:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #start .boo { font-size: clamp(1.3rem, 4.5vw, 1.8rem); font-weight: 800; color: #ff9a3c; }
   #start .go {
     font-size: clamp(1.2rem, 4vw, 1.6rem);
@@ -136,6 +146,10 @@
     <div class="boo" hidden>Happy Halloween!</div>
     <div class="go">Tap, click or press any key</div>
     <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc, or the ✕ in the corner on a touch screen, for a moment to get out.</div>
+    <button class="switch" type="button" aria-pressed="false">
+      <svg viewBox="0 0 32 32" aria-hidden="true" stroke="#1d1530" stroke-width="1.5" stroke-linejoin="round"><path d="M15 8l-1-5 4 0-1 5z" fill="#6d8f2e"/><ellipse cx="11" cy="18" rx="8" ry="10" fill="#ff8c1a"/><ellipse cx="21" cy="18" rx="8" ry="10" fill="#ff8c1a"/><ellipse cx="16" cy="18" rx="6" ry="10.5" fill="#ffa040"/><path d="M10 16h4l-2-3zM18 16h4l-2-3zM10 21q6 5 12 0q-6 2-12 0z" fill="#ffe066" stroke="none"/></svg>
+      Halloween <span class="knob" aria-hidden="true"></span>
+    </button>
     <div class="links">
       <a href="https://github.com/russellmorton/baby-bash" target="_blank" rel="noopener" aria-label="Baby Bash on GitHub" title="GitHub">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -162,15 +176,24 @@
   const hintEl = document.getElementById('hint');
   const exitEl = document.getElementById('exit');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Dressed up for Halloween all of October: ?halloween=1 or ?halloween=0 switches it on or off on any day.
-  const HALLOWEEN = (() => {
+  // Dressed up for Halloween all of October. The switch on the start card turns it on or off on any
+  // day and is remembered; ?halloween=1 or ?halloween=0 in the address beats both.
+  const KEY = 'baby-bash';
+  const switchEl = startEl.querySelector('.switch');
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+  let HALLOWEEN = (() => {
     const ask = new URLSearchParams(location.search).get('halloween');
-    return ask === '1' || ask === '0' ? ask === '1' : new Date().getMonth() === 9;
+    if (ask === '1' || ask === '0') return ask === '1';
+    if (typeof saved.halloween === 'boolean') return saved.halloween;
+    return new Date().getMonth() === 9;
   })();
-  if (HALLOWEEN) {
-    document.body.classList.add('halloween');
-    startEl.querySelector('.boo').hidden = false;
+  function dressUp() {
+    document.body.classList.toggle('halloween', HALLOWEEN);
+    startEl.querySelector('.boo').hidden = !HALLOWEEN;
+    switchEl.setAttribute('aria-pressed', String(HALLOWEEN));
   }
+  dressUp();
 
   let W = 0, H = 0, DPR = 1;
   function resize() {
@@ -352,7 +375,7 @@
   const SPRITE = 64;
   const sprites = new Map();
   function sprite(hue, star) {
-    const key = Math.round(hue / 10) * 2 + (star ? 1 : 0);
+    const key = Math.round(hue / 10) * 3 + (star ? (HALLOWEEN ? 2 : 1) : 0); // a Halloween star is a bat
     let c = sprites.get(key);
     if (c) return c;
     c = document.createElement('canvas');
@@ -541,13 +564,17 @@
   }
 
   /* ---------- Spelling words ---------- */
-  const WORDS = {};
-  for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
-  for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
-  for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
-  if (HALLOWEEN) { WORDS.boo = WORDS.ghost = 'ghost'; WORDS.bat = 'bat'; WORDS.pumpkin = 'pumpkin'; }
+  let WORDS, WORD_ORDER;
+  function buildWords() {
+    WORDS = {};
+    for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
+    for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
+    for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
+    if (HALLOWEEN) { WORDS.boo = WORDS.ghost = 'ghost'; WORDS.bat = 'bat'; WORDS.pumpkin = 'pumpkin'; }
+    WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
+  }
+  buildWords();
   const NAMES = new Set(['jack', 'quinn', 'elizabeth']);
-  const WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
   const LETTER_MS = 220;
 
   let typed = '', lastLetterAt = 0;
@@ -620,7 +647,7 @@
   // flying across with a trail of bats, 50 a pumpkin, ghost, bat or moon, 100 pumpkin fireworks and
   // a flock of bats.
   let bashes = 0;
-  const FLOATS = HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : ['sun', 'moon', 'heart', 'star'];
+  const floats = () => HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : ['sun', 'moon', 'heart', 'star'];
 
   function milestone(n) {
     const cx = W / 2, cy = H / 2;
@@ -645,7 +672,7 @@
       playChord(7, 1);
     } else if (n % 50 === 0) {
       const size = Math.min(W, H) * 0.3;
-      floaters.push({ pic: FLOATS[(n / 50 - 1) % FLOATS.length], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
+      floaters.push({ pic: floats()[(n / 50 - 1) % 4], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
       arp([5, 7, 9, 11, 13], 1, 110, 0.6);
     } else if (n % 25 === 0) {
       sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : rand(0, 360), ghost: HALLOWEEN ? Math.min(W, H) * 0.22 : 0 });
@@ -875,6 +902,8 @@
     if (!started) {
       // On the start card, Tab moves between the links and Enter follows one
       if (e.key === 'Tab' || (e.key === 'Enter' && e.target.closest && e.target.closest('a'))) return;
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === switchEl) return; // the Halloween switch
+
       e.preventDefault();
       // Esc, or a key still auto-repeating from before, must not restart the toy straight after leaving
       if (e.key !== 'Escape' && !e.repeat) begin();
@@ -889,6 +918,7 @@
     if (!e.repeat) feedKey(key);
   }, { capture: true });
   addEventListener('keyup', e => {
+    if (!started && e.target === switchEl) return; // Space presses the switch as it comes up
     e.preventDefault();
     if (e.key === 'Escape') cancelEsc();
   }, { capture: true });
@@ -909,11 +939,17 @@
   for (const type of ['pointerup', 'pointercancel', 'pointerleave']) exitEl.addEventListener(type, cancelHold);
 
   addEventListener('pointerdown', e => {
-    if (!started && e.target.closest('#start a')) return; // let link taps through
+    if (!started && e.target.closest('#start a, #start .switch')) return; // let link and switch taps through
     e.preventDefault();
     if (e.pointerType && e.pointerType !== 'mouse') document.body.classList.add('touch');
     if (!started) { begin(); return; }
     hit('pointer' + Math.floor(Math.random() * 40), e.clientX, e.clientY);
+  });
+  switchEl.addEventListener('click', () => {
+    HALLOWEEN = !HALLOWEEN;
+    try { localStorage.setItem(KEY, JSON.stringify({ ...saved, halloween: HALLOWEEN })); } catch (e) {}
+    dressUp();
+    buildWords();
   });
   addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('wheel', e => e.preventDefault(), { passive: false });

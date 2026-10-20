@@ -519,6 +519,37 @@ test.describe('Halloween', () => {
     await expect(page.locator('#start .boo')).toBeHidden();
   });
 
+  test('the switch on the start card turns it on and off without starting the toy, and is remembered', async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 4, 12, 10, 0)); // May
+    await open(page, { halloween: null });
+    const toggle = page.getByRole('button', { name: 'Halloween' });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#start .boo')).toBeHidden();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#start .boo')).toBeVisible();
+    await expect(page.locator('#start')).toBeVisible();
+    expect(await spy(page, 's => s.contexts')).toBe(0);
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Halloween' })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Halloween' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Halloween' })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#start')).toBeVisible();
+
+    // and once switched on, Halloween words spell out
+    await page.keyboard.press('Space');
+    await expect(page.getByRole('button', { name: 'Halloween' })).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.click(300, 300);
+    await expect(page.locator('#start')).toBeHidden();
+    await page.waitForTimeout(200);
+    await typeSlowly(page, ['b', 'o', 'o']);
+    await page.waitForTimeout(300);
+    expect(await spy(page, 's => s.texts')).toContain('BOO');
+  });
+
   test('every letter is orange, purple or green, and each key keeps its colour', async ({ page }) => {
     const errors = await open(page, { halloween: 1 });
     await start(page);
