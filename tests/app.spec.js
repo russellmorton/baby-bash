@@ -8,7 +8,7 @@ const PENTATONIC = new Set([0, 2, 4, 7, 9]); // C D E G A
 
 /**
  * Open the app with the spy installed and Google Fonts stubbed out (no network in tests).
- * Halloween (all of October) and Christmas (December) are off unless asked for, so the tests don't
+ * Halloween (all of October) and Christmas (12 November to 6 January) are off unless asked for, so the tests don't
  * depend on the date. null leaves it to the date and the switch.
  */
 async function open(page, { halloween = 0, christmas = 0 } = {}) {
@@ -648,9 +648,12 @@ test.describe('Christmas', () => {
   /** Whether a hue is red, green or gold. */
   const merry = h => h >= 345 || h <= 12 || (h >= 110 && h <= 150) || (h >= 36 && h <= 60);
 
-  test('is on from 1 December to 6 January and off the rest of the year', async ({ page }) => {
-    await page.clock.setFixedTime(new Date(2026, 11, 1, 9, 0));
+  test('is on from 12 November to 6 January and off the rest of the year', async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 10, 11, 18, 0));   // Remembrance Day: not yet
     await open(page, { halloween: null, christmas: null });
+    await expect(page.locator('#start .merry-tag')).toBeHidden();
+    await page.clock.setFixedTime(new Date(2026, 10, 12, 9, 0));
+    await page.reload();
     await expect(page.locator('#start .merry-tag')).toHaveText('Merry Christmas!');
     await expect(page.locator('#start .merry-tag')).toBeVisible();
     await page.clock.setFixedTime(new Date(2027, 0, 6, 18, 0));

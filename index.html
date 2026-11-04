@@ -77,7 +77,7 @@
   #start .switch[aria-pressed="true"] .knob::after { transform: translateX(16px); }
   #start .switch:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #start .boo, #start .merry-tag { font-size: clamp(1.3rem, 4.5vw, 1.8rem); font-weight: 800; color: #ff9a3c; }
-  /* Christmas (1 December to 6 January, see XMAS below): red, green and gold */
+  /* Christmas (12 November to 6 January, see XMAS below): red, green and gold */
   body.christmas #start h1 { background-image: linear-gradient(90deg, #ff4d4d, #ffd23f, #4cd964, #ff4d4d, #ffd23f); }
   #start .merry-tag { color: #ff5a5a; }
   #start .go {
@@ -188,7 +188,7 @@
   const hintEl = document.getElementById('hint');
   const exitEl = document.getElementById('exit');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Dressed up for Halloween all of October, and for Christmas from 1 December to 6 January. The
+  // Dressed up for Halloween all of October, and for Christmas from 12 November to 6 January. The
   // switches on the start card turn either on or off on any day and are remembered; ?halloween=1/0
   // and ?christmas=1/0 in the address beat both. Never both at once: one that was asked for (address
   // or switch) beats one that's only on because of the date, and if both were asked for, Christmas wins.
@@ -205,7 +205,7 @@
     return inSeason;
   }
   let HALLOWEEN = season('halloween', today.getMonth() === 9);
-  let XMAS = season('christmas', today.getMonth() === 11 || (today.getMonth() === 0 && today.getDate() <= 6));
+  let XMAS = season('christmas', (today.getMonth() === 10 && today.getDate() >= 12) || today.getMonth() === 11 || (today.getMonth() === 0 && today.getDate() <= 6));
   if (HALLOWEEN && XMAS) {
     const asked = k => query.get(k) === '1' || saved[k] === true;
     if (asked('christmas') || !asked('halloween')) HALLOWEEN = false; else XMAS = false;
