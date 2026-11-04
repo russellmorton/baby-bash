@@ -72,9 +72,14 @@
   #start .switch .knob { width: 38px; height: 22px; border-radius: 999px; background: rgba(255,255,255,0.18); position: relative; transition: background 0.2s ease; }
   #start .switch .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform 0.2s ease; }
   #start .switch[aria-pressed="true"] .knob { background: #ff8c1a; }
+  #start .switch.merry[aria-pressed="true"] .knob { background: #3fae4f; }
+  #start .switches { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
   #start .switch[aria-pressed="true"] .knob::after { transform: translateX(16px); }
   #start .switch:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
-  #start .boo { font-size: clamp(1.3rem, 4.5vw, 1.8rem); font-weight: 800; color: #ff9a3c; }
+  #start .boo, #start .merry-tag { font-size: clamp(1.3rem, 4.5vw, 1.8rem); font-weight: 800; color: #ff9a3c; }
+  /* Christmas (1 December to 6 January, see XMAS below): red, green and gold */
+  body.christmas #start h1 { background-image: linear-gradient(90deg, #ff4d4d, #ffd23f, #4cd964, #ff4d4d, #ffd23f); }
+  #start .merry-tag { color: #ff5a5a; }
   #start .go {
     font-size: clamp(1.2rem, 4vw, 1.6rem);
     font-weight: 600;
@@ -144,12 +149,19 @@
   <div class="card">
     <h1>Baby Bash</h1>
     <div class="boo" hidden>Happy Halloween!</div>
+    <div class="merry-tag" hidden>Merry Christmas!</div>
     <div class="go">Tap, click or press any key</div>
     <div class="note">Goes full screen. Every key makes a colour burst and a note. Grown-ups: hold Esc, or the ✕ in the corner on a touch screen, for a moment to get out.</div>
+    <div class="switches">
     <button class="switch" type="button" aria-pressed="false">
       <svg viewBox="0 0 32 32" aria-hidden="true" stroke="#1d1530" stroke-width="1.5" stroke-linejoin="round"><path d="M15 8l-1-5 4 0-1 5z" fill="#6d8f2e"/><ellipse cx="11" cy="18" rx="8" ry="10" fill="#ff8c1a"/><ellipse cx="21" cy="18" rx="8" ry="10" fill="#ff8c1a"/><ellipse cx="16" cy="18" rx="6" ry="10.5" fill="#ffa040"/><path d="M10 16h4l-2-3zM18 16h4l-2-3zM10 21q6 5 12 0q-6 2-12 0z" fill="#ffe066" stroke="none"/></svg>
       Halloween <span class="knob" aria-hidden="true"></span>
     </button>
+    <button class="switch merry" type="button" aria-pressed="false">
+      <svg viewBox="0 0 32 32" aria-hidden="true" stroke="#1d1530" stroke-width="1.5" stroke-linejoin="round"><path d="M14 25h4v5h-4z" fill="#7a4f26"/><path d="M16 4l-8 10h4l-6 8h5l-5 6h20l-5-6h5l-6-8h4z" fill="#3fae4f"/><circle cx="13" cy="17" r="1.6" fill="#ff3b3b" stroke="none"/><circle cx="19" cy="21" r="1.6" fill="#ffd23f" stroke="none"/><circle cx="17" cy="12" r="1.6" fill="#4fc3ff" stroke="none"/><path d="M16 1.5l1.2 2.6 2.8.3-2.1 1.9.6 2.8-2.5-1.4-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z" fill="#ffd23f" stroke-width="1"/></svg>
+      Christmas <span class="knob" aria-hidden="true"></span>
+    </button>
+    </div>
     <div class="links">
       <a href="https://github.com/russellmorton/baby-bash" target="_blank" rel="noopener" aria-label="Baby Bash on GitHub" title="GitHub">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -176,22 +188,36 @@
   const hintEl = document.getElementById('hint');
   const exitEl = document.getElementById('exit');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Dressed up for Halloween all of October. The switch on the start card turns it on or off on any
-  // day and is remembered; ?halloween=1 or ?halloween=0 in the address beats both.
+  // Dressed up for Halloween all of October, and for Christmas from 1 December to 6 January. The
+  // switches on the start card turn either on or off on any day and are remembered; ?halloween=1/0
+  // and ?christmas=1/0 in the address beat both. Never both at once: one that was asked for (address
+  // or switch) beats one that's only on because of the date, and if both were asked for, Christmas wins.
   const KEY = 'baby-bash';
   const switchEl = startEl.querySelector('.switch');
+  const merryEl = startEl.querySelector('.switch.merry');
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
-  let HALLOWEEN = (() => {
-    const ask = new URLSearchParams(location.search).get('halloween');
+  const query = new URLSearchParams(location.search), today = new Date();
+  function season(key, inSeason) {
+    const ask = query.get(key);
     if (ask === '1' || ask === '0') return ask === '1';
-    if (typeof saved.halloween === 'boolean') return saved.halloween;
-    return new Date().getMonth() === 9;
-  })();
+    if (typeof saved[key] === 'boolean') return saved[key];
+    return inSeason;
+  }
+  let HALLOWEEN = season('halloween', today.getMonth() === 9);
+  let XMAS = season('christmas', today.getMonth() === 11 || (today.getMonth() === 0 && today.getDate() <= 6));
+  if (HALLOWEEN && XMAS) {
+    const asked = k => query.get(k) === '1' || saved[k] === true;
+    if (asked('christmas') || !asked('halloween')) HALLOWEEN = false; else XMAS = false;
+  }
+  const dressed = () => HALLOWEEN || XMAS;
   function dressUp() {
     document.body.classList.toggle('halloween', HALLOWEEN);
+    document.body.classList.toggle('christmas', XMAS);
     startEl.querySelector('.boo').hidden = !HALLOWEEN;
+    startEl.querySelector('.merry-tag').hidden = !XMAS;
     switchEl.setAttribute('aria-pressed', String(HALLOWEEN));
+    merryEl.setAttribute('aria-pressed', String(XMAS));
   }
   dressUp();
 
@@ -339,15 +365,17 @@
     return h >>> 0;
   }
   const rand = (a, b) => a + Math.random() * (b - a);
-  // A key's colour. At Halloween every hue lands in pumpkin orange, purple or slime green.
+  // A key's colour. At Halloween every hue lands in pumpkin orange, purple or slime green; at
+  // Christmas in red, green or gold.
   const SPOOKY_HUES = [[18, 40], [262, 296], [88, 128]];
+  const MERRY_HUES = [[352, 368], [118, 142], [42, 54]];
   function keyHue(h) {
-    if (!HALLOWEEN) return h % 360;
+    if (!dressed()) return h % 360;
     h = Math.abs(Math.floor(h));
-    const [a, b] = SPOOKY_HUES[h % 3];
-    return a + (h >>> 4) % (b - a);
+    const [a, b] = (XMAS ? MERRY_HUES : SPOOKY_HUES)[h % 3];
+    return (a + (h >>> 4) % (b - a)) % 360;
   }
-  const spread = () => HALLOWEEN ? rand(-12, 12) : rand(-35, 35);
+  const spread = () => dressed() ? rand(-12, 12) : rand(-35, 35);
 
   function burst(x, y, hue, big = false) {
     const count = (big ? 110 : 55) * (reduced ? 0.4 : 1);
@@ -367,7 +395,7 @@
       });
     }
     rings.push({ x, y, r: 10, max: big ? Math.max(W, H) * 0.6 : rand(120, 260), hue, life: 1 });
-    if (big) rings.push({ x, y, r: 4, max: Math.max(W, H) * 0.4, hue: HALLOWEEN ? keyHue((hue | 0) + 1) : (hue + 120) % 360, life: 1 });
+    if (big) rings.push({ x, y, r: 4, max: Math.max(W, H) * 0.4, hue: dressed() ? keyHue((hue | 0) + 1) : (hue + 120) % 360, life: 1 });
   }
 
   // Each colour/shape is drawn once to a small sprite, then stamped with drawImage.
@@ -375,7 +403,7 @@
   const SPRITE = 64;
   const sprites = new Map();
   function sprite(hue, star) {
-    const key = Math.round(hue / 10) * 3 + (star ? (HALLOWEEN ? 2 : 1) : 0); // a Halloween star is a bat
+    const key = Math.round(hue / 10) * 4 + (star ? (HALLOWEEN ? 2 : XMAS ? 3 : 1) : 0); // a Halloween star is a bat, a Christmas one a snowflake
     let c = sprites.get(key);
     if (c) return c;
     c = document.createElement('canvas');
@@ -393,6 +421,20 @@
         g.moveTo(m + s * 3, m - 8); g.lineTo(m + s * 7, m - 19); g.lineTo(m + s * 10, m - 6);
       }
       g.moveTo(m + 11, m); g.arc(m, m, 11, 0, Math.PI * 2);
+    } else if (star && XMAS) {
+      // a snowflake: six arms, each with a little V near its tip
+      g.strokeStyle = `hsl(${Math.round(hue / 10) * 10}, 100%, 80%)`; g.lineWidth = 5; g.lineCap = 'round';
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3, cx = Math.cos(a), sy = Math.sin(a);
+        g.moveTo(m, m); g.lineTo(m + cx * 28, m + sy * 28);
+        for (const s of [-1, 1]) {
+          const b = a + s * 0.7;
+          g.moveTo(m + cx * 17, m + sy * 17); g.lineTo(m + cx * 17 + Math.cos(b) * 10, m + sy * 17 + Math.sin(b) * 10);
+        }
+      }
+      g.stroke();
+      sprites.set(key, c);
+      return c;
     } else if (star) {
       for (let i = 0; i < 10; i++) {
         const rr = i % 2 ? m * 0.45 : m - 1, a = -Math.PI / 2 + i * Math.PI / 5;
@@ -546,6 +588,58 @@
       disc(g, -7, -5, 4, 'hsl(50, 100%, 75%)'); disc(g, 7, -5, 4, 'hsl(50, 100%, 75%)');
       poly(g, '#fff', [-5, 7, -2, 7, -3.5, 12]); poly(g, '#fff', [2, 7, 5, 7, 3.5, 12]);
     },
+    xmastree(g) {
+      poly(g, 'hsl(28, 45%, 38%)', [-7, 30, 7, 30, 7, 48, -7, 48]);
+      poly(g, 'hsl(135, 55%, 36%)', [-44, 34, 44, 34, 0, -10]);
+      poly(g, 'hsl(135, 55%, 40%)', [-34, 10, 34, 10, 0, -30]);
+      poly(g, 'hsl(135, 55%, 46%)', [-24, -12, 24, -12, 0, -44]);
+      for (const [x, y, h] of [[-20, 24, 0], [14, 26, 48], [-8, 4, 205], [16, 0, 320], [2, -22, 0], [-26, 30, 48]]) disc(g, x, y, 4.5, `hsl(${h}, 95%, 62%)`);
+      g.save(); g.translate(0, -46); g.scale(0.28, 0.28); PICS.star(g); g.restore();
+    },
+    present(g) {
+      poly(g, 'hsl(355, 80%, 56%)', [-36, -12, 36, -12, 36, 40, -36, 40]);
+      poly(g, 'hsl(355, 80%, 62%)', [-40, -24, 40, -24, 40, -10, -40, -10]);
+      g.fillStyle = 'hsl(48, 100%, 60%)'; g.fillRect(-7, -24, 14, 64);
+      oval(g, -14, -32, 15, 9, 'hsl(48, 100%, 60%)', 0.45); oval(g, 14, -32, 15, 9, 'hsl(48, 100%, 60%)', -0.45);
+      disc(g, 0, -28, 7, 'hsl(44, 100%, 52%)');
+    },
+    snowman(g) {
+      const snow = 'hsl(210, 45%, 95%)';
+      line(g, 'hsl(28, 45%, 38%)', 4, -20, 12, -44, -6); line(g, 'hsl(28, 45%, 38%)', 4, 20, 12, 44, -6);
+      disc(g, 0, 22, 28, snow); disc(g, 0, -20, 20, snow);
+      poly(g, EYE, [-16, -36, 16, -36, 12, -60, -12, -60]); poly(g, EYE, [-22, -38, 22, -38, 22, -34, -22, -34]);
+      eyes(g, 7, -24, 3.2); poly(g, 'hsl(28, 100%, 58%)', [-2, -18, 2, -18, 0, -6]);
+      poly(g, 'hsl(355, 80%, 58%)', [-20, -4, 20, -4, 20, 3, -20, 3]); poly(g, 'hsl(355, 80%, 58%)', [8, 0, 15, 0, 17, 18, 10, 18]);
+      for (const y of [16, 30]) disc(g, 0, y, 3.5, EYE);
+    },
+    bell(g) {
+      const gold = 'hsl(46, 100%, 56%)';
+      g.fillStyle = gold; g.beginPath(); g.moveTo(-38, 28);
+      g.bezierCurveTo(-26, 18, -30, -34, 0, -34); g.bezierCurveTo(30, -34, 26, 18, 38, 28); g.closePath(); g.fill();
+      disc(g, 0, 32, 9, 'hsl(40, 100%, 44%)');
+      oval(g, -12, -38, 12, 7, 'hsl(355, 80%, 58%)', 0.5); oval(g, 12, -38, 12, 7, 'hsl(355, 80%, 58%)', -0.5);
+      disc(g, 0, -37, 5, 'hsl(355, 80%, 50%)');
+      oval(g, -12, -10, 5, 12, 'hsla(50, 100%, 85%, 0.7)', 0.3);
+    },
+    santa(g) {
+      g.fillStyle = 'hsl(355, 80%, 56%)'; g.beginPath(); g.moveTo(-34, 22);
+      g.quadraticCurveTo(-16, -50, 20, -36); g.quadraticCurveTo(34, -24, 34, -6); g.quadraticCurveTo(24, -24, 8, -22);
+      g.quadraticCurveTo(26, 0, 34, 22); g.closePath(); g.fill();
+      poly(g, 'hsl(0, 0%, 97%)', [-42, 16, 42, 16, 42, 34, -42, 34]);
+      disc(g, -42, 25, 9, 'hsl(0, 0%, 97%)'); disc(g, 42, 25, 9, 'hsl(0, 0%, 97%)');
+      disc(g, 34, -4, 10, 'hsl(0, 0%, 97%)');
+    },
+    reindeer(g) {
+      const antler = 'hsl(30, 45%, 62%)';
+      for (const s of [-1, 1]) {
+        line(g, antler, 5, s * 12, -26, s * 26, -50); line(g, antler, 5, s * 20, -40, s * 36, -44); line(g, antler, 5, s * 24, -47, s * 18, -58);
+      }
+      oval(g, -30, -12, 12, 7, 'hsl(28, 45%, 40%)', 0.4); oval(g, 30, -12, 12, 7, 'hsl(28, 45%, 40%)', -0.4);
+      oval(g, 0, 2, 26, 32, 'hsl(28, 50%, 46%)');
+      oval(g, 0, 22, 16, 13, 'hsl(32, 55%, 72%)');
+      eyes(g, 10, -6, 4);
+      disc(g, 0, 16, 9, 'hsl(355, 95%, 58%)'); disc(g, -3, 13, 3, 'hsla(0, 0%, 100%, 0.7)');
+    },
     fish(g) {
       poly(g, 'hsl(210, 80%, 52%)', [24, 0, 48, -22, 48, 22]);
       poly(g, 'hsl(210, 80%, 52%)', [-10, -18, 6, -34, 10, -16]);
@@ -571,6 +665,10 @@
     for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
     for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
     if (HALLOWEEN) { WORDS.boo = WORDS.ghost = 'ghost'; WORDS.bat = 'bat'; WORDS.pumpkin = 'pumpkin'; }
+    if (XMAS) {
+      WORDS.santa = 'santa'; WORDS.snow = 'snowman'; WORDS.gift = WORDS.present = 'present';
+      WORDS.bell = 'bell'; WORDS.deer = WORDS.reindeer = 'reindeer'; WORDS.tree = 'xmastree';
+    }
     WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
   }
   buildWords();
@@ -597,7 +695,7 @@
     burst(W / 2, H * 0.36, keyHue(hash('Key' + w[0].toUpperCase())), true);
     if (NAMES.has(w)) {
       for (let i = 1; i <= 3; i++) {
-        later.push({ at: now + i * 300, fn: () => burst(rand(W * 0.2, W * 0.8), rand(H * 0.15, H * 0.6), HALLOWEEN ? keyHue(i) : rand(0, 360), true) });
+        later.push({ at: now + i * 300, fn: () => burst(rand(W * 0.2, W * 0.8), rand(H * 0.15, H * 0.6), dressed() ? keyHue(i) : rand(0, 360), true) });
       }
     }
     // One rising note per letter, as it lights up, then a chord
@@ -645,9 +743,10 @@
   // Every 10th bash gets a little extra, and the reward grows: 10 star ring, 25 rainbow sweep,
   // 50 a big shape floats up, 100 fireworks. At Halloween: 10 a ring of jack-o'-lanterns, 25 a ghost
   // flying across with a trail of bats, 50 a pumpkin, ghost, bat or moon, 100 pumpkin fireworks and
-  // a flock of bats.
+  // a flock of bats. At Christmas: 10 a ring of presents, 25 a reindeer flying across with a trail of
+  // snowflakes, 50 a Christmas tree, present, snowman or bell, 100 present fireworks and a peal of bells.
   let bashes = 0;
-  const floats = () => HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : ['sun', 'moon', 'heart', 'star'];
+  const floats = () => HALLOWEEN ? ['pumpkin', 'ghost', 'bat', 'moon'] : XMAS ? ['xmastree', 'present', 'snowman', 'bell'] : ['sun', 'moon', 'heart', 'star'];
 
   function milestone(n) {
     const cx = W / 2, cy = H / 2;
@@ -657,8 +756,9 @@
           at: performance.now() + i * 260,
           fn: () => {
             const x = rand(W * 0.15, W * 0.85), y = rand(H * 0.15, H * 0.7);
-            burst(x, y, HALLOWEEN ? keyHue(i) : rand(0, 360), true);
+            burst(x, y, dressed() ? keyHue(i) : rand(0, 360), true);
             if (HALLOWEEN) pumpkinRing(x, y, reduced ? 4 : 7, 6);
+            if (XMAS) picRing(x, y, reduced ? 4 : 7, 6, 'present');
             playNote(8 + i * 2, 1, 0.6);
           },
         });
@@ -669,25 +769,35 @@
           floaters.push({ pic: 'bat', x: W * (0.1 + i * 0.16), y: H + size + i * size * 0.6, size, phase: Math.random() * 6, flap: true });
         }
       }
+      if (XMAS) {
+        for (let i = 0; i < 6; i++) {
+          const size = Math.min(W, H) * rand(0.1, 0.16);
+          floaters.push({ pic: 'bell', x: W * (0.1 + i * 0.16), y: H + size + i * size * 0.6, size, phase: Math.random() * 6 });
+        }
+      }
       playChord(7, 1);
     } else if (n % 50 === 0) {
       const size = Math.min(W, H) * 0.3;
       floaters.push({ pic: floats()[(n / 50 - 1) % 4], x: rand(W * 0.3, W * 0.7), y: H + size, size, phase: Math.random() * 6 });
       arp([5, 7, 9, 11, 13], 1, 110, 0.6);
     } else if (n % 25 === 0) {
-      sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : rand(0, 360), ghost: HALLOWEEN ? Math.min(W, H) * 0.22 : 0 });
+      sweeps.push({ x: -20, hue: HALLOWEEN ? 20 : XMAS ? 0 : rand(0, 360), ghost: dressed() ? Math.min(W, H) * 0.22 : 0, pic: XMAS ? 'reindeer' : 'ghost' });
       arp([3, 4, 5, 6, 7, 8], 0, 190, 0.5);
     } else if (HALLOWEEN) {
       pumpkinRing(cx, cy, reduced ? 6 : 10, 4.5);
       rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue: 28, life: 1 });
       arp([9, 11], 1, 90, 0.6);
+    } else if (XMAS) {
+      picRing(cx, cy, reduced ? 6 : 10, 4.5, 'present');
+      rings.push({ x: cx, y: cy, r: 10, max: Math.min(W, H) * 0.45, hue: 130, life: 1 });
+      arp([9, 11], 1, 90, 0.6);
     } else {
-      const count = reduced ? 8 : 18, hue = HALLOWEEN ? keyHue(Math.random() * 1e6 | 0) : rand(0, 360);
+      const count = reduced ? 8 : 18, hue = rand(0, 360);
       for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
         const a = i / count * Math.PI * 2;
         particles.push({
           x: cx, y: cy, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7,
-          r: 12, hue: HALLOWEEN ? keyHue(i) : (hue + i * 360 / count) % 360, life: 1, decay: 0.012,
+          r: 12, hue: (hue + i * 360 / count) % 360, life: 1, decay: 0.012,
           star: true, spin: 0.08, rot: 0,
         });
       }
@@ -696,26 +806,52 @@
     }
   }
 
-  // Little jack-o'-lanterns flung out in a spinning ring.
-  function pumpkinRing(x, y, count, speed) {
+  // Little pictures (jack-o'-lanterns, presents) flung out in a spinning ring.
+  function picRing(x, y, count, speed, pic) {
     for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
       const a = i / count * Math.PI * 2;
       particles.push({
         x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
         r: 28, hue: 28, life: 1, decay: 0.008,
-        pumpkin: true, spin: rand(-0.08, 0.08), rot: 0,
+        pic, spin: rand(-0.08, 0.08), rot: 0,
       });
     }
   }
-  let pumpkinImg = null;
-  function pumpkinSprite() {
-    if (pumpkinImg) return pumpkinImg;
-    pumpkinImg = document.createElement('canvas');
-    pumpkinImg.width = pumpkinImg.height = SPRITE;
-    const g = pumpkinImg.getContext('2d');
+  const pumpkinRing = (x, y, count, speed) => picRing(x, y, count, speed, 'pumpkin');
+  const picImgs = {};
+  function picSprite(pic) {
+    if (picImgs[pic]) return picImgs[pic];
+    const c = picImgs[pic] = document.createElement('canvas');
+    c.width = c.height = SPRITE;
+    const g = c.getContext('2d');
     g.translate(SPRITE / 2, SPRITE / 2 + 3); g.scale(SPRITE / 108, SPRITE / 108);
-    PICS.pumpkin(g);
-    return pumpkinImg;
+    PICS[pic](g);
+    return c;
+  }
+
+  // Christmas: snow drifting down, and a string of twinkly fairy lights along the top.
+  function christmasSky(now) {
+    const t = reduced ? 0 : now / 1000;
+    // slow and soft, so the fading trails behind them stay short
+    ctx.fillStyle = 'hsla(210, 60%, 96%, 0.45)';
+    for (let i = 0; i < 70; i++) {
+      const r = 1.5 + (i * 7 % 5) * 0.6, fall = 4 + r * 2.5;
+      const y = ((i * 97 % 101) / 101 * (H + 20) + t * fall) % (H + 20) - 10;
+      const x = (i * 61 % 103) / 103 * W + Math.sin(t * 0.8 + i) * 12;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    const n = Math.max(8, Math.round(W / 70)), sag = Math.min(28, H * 0.04), top = 6;
+    const yAt = x => top + Math.abs(Math.sin(x / W * Math.PI * 3)) * sag;
+    ctx.strokeStyle = 'hsl(140, 35%, 30%)'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, yAt(x));
+    ctx.stroke();
+    const cols = [0, 130, 48, 205];
+    for (let i = 0; i < n; i++) {
+      const x = (i + 0.5) * W / n, y = yAt(x);
+      const on = reduced ? 1 : 0.55 + 0.45 * Math.sin(t * 3 + i * 1.7);
+      oval(ctx, x, y + 8, 5, 8, `hsla(${cols[i % 4]}, 100%, ${55 + on * 15}%, ${0.5 + on * 0.5})`);
+    }
   }
 
   // Halloween: a big orange moon, with two bats flapping slowly past it.
@@ -746,23 +882,24 @@
     }
     for (let i = sweeps.length - 1; i >= 0; i--) {
       const s = sweeps[i];
-      s.x += W / (s.ghost ? 160 : 80); // the Halloween ghost takes its time, so it can be seen
+      s.x += W / (s.ghost ? 160 : 80); // the Halloween ghost (or Christmas reindeer) takes its time, so it can be seen
       if (s.x > W + 20 + s.ghost) { drop(sweeps, i); continue; }
       for (let k = 0; k < (reduced ? 2 : 5) && particles.length < MAX_PARTICLES; k++) {
         particles.push({
           x: s.x, y: H * 0.5 + Math.sin(s.x / (W / 6)) * H * 0.22 + (k - 2) * H * 0.035,
           vx: rand(-0.3, 0.3), vy: rand(-1, 0),
-          r: rand(7, 12), hue: HALLOWEEN ? keyHue(Math.floor(s.x / W * 6) + k) : (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
-          star: HALLOWEEN || k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
+          r: rand(7, 12), hue: dressed() ? keyHue(Math.floor(s.x / W * 6) + k) : (s.hue + s.x / W * 300 + k * 18) % 360, life: 1, decay: 0.014,
+          star: dressed() || k % 2 === 0, spin: rand(-0.1, 0.1), rot: 0,
         });
       }
     }
-    bgHue = HALLOWEEN ? 272 + Math.sin(now / 9000) * 12 : (bgHue + 0.03) % 360;
+    bgHue = HALLOWEEN ? 272 + Math.sin(now / 9000) * 12 : XMAS ? 222 + Math.sin(now / 9000) * 8 : (bgHue + 0.03) % 360;
     // Translucent wash leaves soft trails behind everything
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = `hsla(${bgHue}, 50%, 7%, ${reduced ? 0.5 : 0.16})`;
     ctx.fillRect(0, 0, W, H);
     if (HALLOWEEN) spookySky(now);
+    if (XMAS) christmasSky(now);
 
     ctx.globalCompositeOperation = 'lighter';
     for (let i = rings.length - 1; i >= 0; i--) {
@@ -784,13 +921,13 @@
       if (p.life <= 0) { drop(particles, i); continue; }
       const r = p.r * (0.4 + 0.6 * p.life);
       ctx.globalAlpha = p.life;
-      if (p.star || p.pumpkin) {
+      if (p.star || p.pic) {
         const c = Math.cos(p.rot) * DPR, sn = Math.sin(p.rot) * DPR;
         ctx.setTransform(c, sn, -sn, c, p.x * DPR, p.y * DPR);
-        // pumpkins keep their own colours instead of glowing like the rest
-        if (p.pumpkin) ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(p.pumpkin ? pumpkinSprite() : sprite(p.hue, true), -r, -r, r * 2, r * 2);
-        if (p.pumpkin) ctx.globalCompositeOperation = 'lighter';
+        // pumpkins and presents keep their own colours instead of glowing like the rest
+        if (p.pic) ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(p.pic ? picSprite(p.pic) : sprite(p.hue, true), -r, -r, r * 2, r * 2);
+        if (p.pic) ctx.globalCompositeOperation = 'lighter';
       } else {
         ctx.drawImage(sprite(p.hue, false), p.x - r, p.y - r, r * 2, r * 2);
       }
@@ -821,14 +958,14 @@
         ctx.restore();
       } else drawPic(f.pic, f.x + (reduced ? 0 : Math.sin(f.phase) * 30), f.y, f.size, 0.9);
     }
-    // the Halloween ghost leads its sweep, swooping along the same wave
+    // the Halloween ghost (or Christmas reindeer) leads its sweep, swooping along the same wave
     for (const s of sweeps) {
       if (!s.ghost) continue;
       const x = s.x + s.ghost * 0.4, y = H * 0.5 + Math.sin(x / (W / 6)) * H * 0.22;
       ctx.save();
       ctx.translate(x, y); ctx.rotate(Math.cos(x / (W / 6)) * 0.25);
       ctx.scale(s.ghost / 100, s.ghost / 100);
-      PICS.ghost(ctx);
+      PICS[s.pic](ctx);
       ctx.restore();
     }
     if (wordShow) drawWord(now);
@@ -902,7 +1039,7 @@
     if (!started) {
       // On the start card, Tab moves between the links and Enter follows one
       if (e.key === 'Tab' || (e.key === 'Enter' && e.target.closest && e.target.closest('a'))) return;
-      if ((e.key === 'Enter' || e.key === ' ') && e.target === switchEl) return; // the Halloween switch
+      if ((e.key === 'Enter' || e.key === ' ') && (e.target === switchEl || e.target === merryEl)) return; // the switches
 
       e.preventDefault();
       // Esc, or a key still auto-repeating from before, must not restart the toy straight after leaving
@@ -918,7 +1055,7 @@
     if (!e.repeat) feedKey(key);
   }, { capture: true });
   addEventListener('keyup', e => {
-    if (!started && e.target === switchEl) return; // Space presses the switch as it comes up
+    if (!started && (e.target === switchEl || e.target === merryEl)) return; // Space presses a switch as it comes up
     e.preventDefault();
     if (e.key === 'Escape') cancelEsc();
   }, { capture: true });
@@ -945,12 +1082,21 @@
     if (!started) { begin(); return; }
     hit('pointer' + Math.floor(Math.random() * 40), e.clientX, e.clientY);
   });
-  switchEl.addEventListener('click', () => {
-    HALLOWEEN = !HALLOWEEN;
-    try { localStorage.setItem(KEY, JSON.stringify({ ...saved, halloween: HALLOWEEN })); } catch (e) {}
+  // Turning one switch on turns the other off.
+  function flip(which) {
+    if (which === 'halloween') {
+      HALLOWEEN = saved.halloween = !HALLOWEEN;
+      if (HALLOWEEN && XMAS) XMAS = saved.christmas = false;
+    } else {
+      XMAS = saved.christmas = !XMAS;
+      if (XMAS && HALLOWEEN) HALLOWEEN = saved.halloween = false;
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
     dressUp();
     buildWords();
-  });
+  }
+  switchEl.addEventListener('click', () => flip('halloween'));
+  merryEl.addEventListener('click', () => flip('christmas'));
   addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('wheel', e => e.preventDefault(), { passive: false });
 

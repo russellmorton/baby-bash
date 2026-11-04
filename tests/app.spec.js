@@ -8,15 +8,19 @@ const PENTATONIC = new Set([0, 2, 4, 7, 9]); // C D E G A
 
 /**
  * Open the app with the spy installed and Google Fonts stubbed out (no network in tests).
- * Halloween (all of October) is off unless asked for, so the tests don't depend on the date.
+ * Halloween (all of October) and Christmas (December) are off unless asked for, so the tests don't
+ * depend on the date. null leaves it to the date and the switch.
  */
-async function open(page, { halloween = 0 } = {}) {
+async function open(page, { halloween = 0, christmas = 0 } = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.addInitScript({ path: path.join(__dirname, 'spy.js') });
-  await page.goto(halloween === null ? APP : `${APP}?halloween=${halloween}`);
+  const q = new URLSearchParams();
+  if (halloween !== null) q.set('halloween', halloween);
+  if (christmas !== null) q.set('christmas', christmas);
+  await page.goto(q.size ? `${APP}?${q}` : APP);
   return errors;
 }
 
@@ -637,5 +641,114 @@ test.describe('Halloween', () => {
     await page.waitForTimeout(3500);
     expect(await brightPixels(page)).toBeGreaterThan(quiet + 3000);
     expect(errors).toEqual([]);
+  });
+});
+
+test.describe('Christmas', () => {
+  /** Whether a hue is red, green or gold. */
+  const merry = h => h >= 345 || h <= 12 || (h >= 110 && h <= 150) || (h >= 36 && h <= 60);
+
+  test('is on from 1 December to 6 January and off the rest of the year', async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 11, 1, 9, 0));
+    await open(page, { halloween: null, christmas: null });
+    await expect(page.locator('#start .merry-tag')).toHaveText('Merry Christmas!');
+    await expect(page.locator('#start .merry-tag')).toBeVisible();
+    await page.clock.setFixedTime(new Date(2027, 0, 6, 18, 0));
+    await page.reload();
+    await expect(page.locator('#start .merry-tag')).toBeVisible();
+    await page.clock.setFixedTime(new Date(2027, 0, 7, 9, 0));
+    await page.reload();
+    await expect(page.locator('#start .merry-tag')).toBeHidden();
+  });
+
+  test('the switch turns it on without starting the toy, is remembered, and turns Halloween off', async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 9, 20, 10, 0)); // October: Halloween by the date
+    await open(page, { halloween: null, christmas: null });
+    const merrySwitch = page.getByRole('button', { name: 'Christmas' }), spookySwitch = page.getByRole('button', { name: 'Halloween' });
+    await expect(spookySwitch).toHaveAttribute('aria-pressed', 'true');
+    await expect(merrySwitch).toHaveAttribute('aria-pressed', 'false');
+
+    await merrySwitch.click();
+    await expect(merrySwitch).toHaveAttribute('aria-pressed', 'true');
+    await expect(spookySwitch).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#start .merry-tag')).toBeVisible();
+    await expect(page.locator('#start .boo')).toBeHidden();
+    await expect(page.locator('#start')).toBeVisible();
+    expect(await spy(page, 's => s.contexts')).toBe(0);
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Christmas' })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Christmas' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Christmas' })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#start')).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(page.getByRole('button', { name: 'Christmas' })).toHaveAttribute('aria-pressed', 'true');
+
+    // and Christmas words spell out
+    await page.mouse.click(300, 300);
+    await expect(page.locator('#start')).toBeHidden();
+    await page.waitForTimeout(200);
+    await typeSlowly(page, ['s', 'a', 'n', 't', 'a']);
+    await page.waitForTimeout(300);
+    expect(await spy(page, 's => s.texts')).toContain('SANTA');
+  });
+
+  test('every letter is red, green or gold', async ({ page }) => {
+    const errors = await open(page, { christmas: 1 });
+    await start(page);
+    for (const k of 'abcdefghijklmnopqrstuvwxyz'.split('')) {
+      await page.keyboard.press(k);
+      await page.waitForTimeout(20);
+    }
+    await page.waitForTimeout(150);
+    const glyphs = await spy(page, 's => s.glyphs');
+    expect(glyphs.length).toBe(26);
+    const hues = glyphs.map(g => hueOf(g.color));
+    expect(hues.filter(h => !merry(h)), `hues: ${hues.map(Math.round).join(', ')}`).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('SANTA, SNOW, GIFT, BELL, DEER and TREE spell out with their pictures', async ({ page }) => {
+    const errors = await open(page, { christmas: 1 });
+    await start(page);
+    for (const word of ['santa', 'snow', 'gift', 'bell', 'deer', 'tree']) {
+      await typeSlowly(page, word.split(''));
+      await page.keyboard.press('Space');
+    }
+    await page.waitForTimeout(300);
+    const texts = await spy(page, 's => s.texts');
+    for (const word of ['SANTA', 'SNOW', 'GIFT', 'BELL', 'DEER', 'TREE']) expect(texts).toContain(word);
+    expect(errors).toEqual([]);
+  });
+
+  test('Christmas words are just letters the rest of the year', async ({ page }) => {
+    await open(page);
+    await start(page);
+    await typeSlowly(page, ['s', 'a', 'n', 't', 'a']);
+    await page.waitForTimeout(300);
+    expect(await spy(page, 's => s.texts')).not.toContain('SANTA');
+  });
+
+  test('the 10th bash flings out a ring of presents', async ({ page }) => {
+    const errors = await open(page, { christmas: 1 });
+    await start(page);
+    await typeSlowly(page, NO_WORDS.slice(0, 9));
+    await page.waitForTimeout(3500);
+    const box = { x: 440, y: 200, w: 400, h: 400 };
+    const quiet = await brightPixels(page, box);
+    await page.keyboard.press(NO_WORDS[9]);
+    await page.waitForTimeout(400);
+    expect(await brightPixels(page, box)).toBeGreaterThan(quiet + 2000);
+    expect(errors).toEqual([]);
+  });
+
+  test('the 25th, 50th and 100th bashes run without errors', async ({ page }) => {
+    const errors = await open(page, { christmas: 1 });
+    await start(page);
+    await mash(page, distinctCodes(100));
+    await page.waitForTimeout(2500);
+    expect(errors).toEqual([]);
+    expect(await brightPixels(page)).toBeGreaterThan(1000);
   });
 });
