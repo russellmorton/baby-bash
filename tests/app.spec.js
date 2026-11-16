@@ -43,6 +43,14 @@ function mash(page, codes) {
   }, codes);
 }
 
+/**
+ * Wait for n animation frames. Bursts fade and shapes move a step per frame, so under load (the whole suite in
+ * parallel) a fixed wait in milliseconds can end before they have cleared. 210 frames is 3.5s at 60fps.
+ */
+function frames(page, n) {
+  return page.evaluate(n => new Promise(r => { const f = () => (--n <= 0 ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+}
+
 /** Number of bright pixels on the canvas (the background is ~7% lightness). */
 function brightPixels(page, box) {
   return page.evaluate(box => {
@@ -387,10 +395,10 @@ test.describe('bash milestones', () => {
     await open(page);
     await start(page);
     await mash(page, distinctCodes(49));
-    await page.waitForTimeout(3500); // bursts and the 25th-bash sweep have cleared
+    await frames(page, 210); // bursts and the 25th-bash sweep have cleared
     const quiet = await brightPixels(page);
     await mash(page, ['X49']);
-    await page.waitForTimeout(3500); // the shape is mid-screen by now
+    await frames(page, 210); // the shape is mid-screen by now
     expect(await brightPixels(page)).toBeGreaterThan(quiet + 3000);
   });
 
@@ -635,10 +643,10 @@ test.describe('Halloween', () => {
     const errors = await open(page, { halloween: 1 });
     await start(page);
     await mash(page, distinctCodes(49));
-    await page.waitForTimeout(3500);
+    await frames(page, 210);
     const quiet = await brightPixels(page);
     await mash(page, ['X49']);
-    await page.waitForTimeout(3500);
+    await frames(page, 210);
     expect(await brightPixels(page)).toBeGreaterThan(quiet + 3000);
     expect(errors).toEqual([]);
   });
