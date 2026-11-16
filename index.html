@@ -640,6 +640,25 @@
       eyes(g, 10, -6, 4);
       disc(g, 0, 16, 9, 'hsl(355, 95%, 58%)'); disc(g, -3, 13, 3, 'hsla(0, 0%, 100%, 0.7)');
     },
+    granny(g) {
+      const hair = 'hsl(220, 12%, 86%)', skin = 'hsl(28, 70%, 80%)';
+      // lavender cardigan with a string of pearls
+      g.fillStyle = 'hsl(270, 45%, 66%)'; g.beginPath(); g.moveTo(-40, 50);
+      g.quadraticCurveTo(-38, 26, 0, 26); g.quadraticCurveTo(38, 26, 40, 50); g.closePath(); g.fill();
+      for (let i = -3; i <= 3; i++) disc(g, i * 5, 31 + Math.abs(i) * -1.2, 2.6, 'hsl(40, 40%, 96%)');
+      // silver hair in a bun, with soft curls round the face
+      disc(g, 0, -40, 12, hair); disc(g, 0, -10, 31, hair);
+      oval(g, 0, -2, 23, 26, skin);
+      oval(g, 0, -24, 21, 9, hair); disc(g, -22, -12, 9, hair); disc(g, 22, -12, 9, hair);
+      // round glasses
+      g.strokeStyle = EYE; g.lineWidth = 2.2;
+      for (const s of [-1, 1]) { g.beginPath(); g.arc(s * 10, -3, 8, 0, Math.PI * 2); g.stroke(); }
+      line(g, EYE, 2.2, -2, -4, 2, -4);
+      eyes(g, 10, -3, 2.8);
+      disc(g, -15, 8, 5, 'hsla(345, 90%, 70%, 0.55)'); disc(g, 15, 8, 5, 'hsla(345, 90%, 70%, 0.55)');
+      g.strokeStyle = EYE; g.lineWidth = 2.5; g.lineCap = 'round';
+      g.beginPath(); g.arc(0, 6, 9, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+    },
     fish(g) {
       poly(g, 'hsl(210, 80%, 52%)', [24, 0, 48, -22, 48, 22]);
       poly(g, 'hsl(210, 80%, 52%)', [-10, -18, 6, -34, 10, -16]);
@@ -664,6 +683,7 @@
     for (const w of 'cat dog cow pig bee duck fish sun moon tree ball car'.split(' ')) WORDS[w] = w;
     for (const w of 'mama dada papa nana baby'.split(' ')) WORDS[w] = 'heart';
     for (const w of 'jack quinn elizabeth gunnar star'.split(' ')) WORDS[w] = 'star';
+    WORDS.geri = 'granny';
     if (HALLOWEEN) { WORDS.boo = WORDS.ghost = 'ghost'; WORDS.bat = 'bat'; WORDS.pumpkin = 'pumpkin'; }
     if (XMAS) {
       WORDS.santa = 'santa'; WORDS.snow = 'snowman'; WORDS.gift = WORDS.present = 'present';
@@ -672,7 +692,7 @@
     WORD_ORDER = Object.keys(WORDS).sort((a, b) => b.length - a.length); // longest match first
   }
   buildWords();
-  const NAMES = new Set(['jack', 'quinn', 'elizabeth']);
+  const NAMES = new Set(['jack', 'quinn', 'elizabeth', 'gunnar', 'geri']);
   const LETTER_MS = 220;
 
   let typed = '', lastLetterAt = 0;
